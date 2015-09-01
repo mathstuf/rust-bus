@@ -1,3 +1,1 @@
-pub trait DBusInterface {
-    // TODO: Implement.
-}
+pub struct DBusInterface; // TODO: Implement.
