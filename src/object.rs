@@ -3,15 +3,17 @@ use super::interface::DBusInterface;
 extern crate dbus;
 use self::dbus::{Connection, Error};
 
+use std::collections::btree_map::BTreeMap;
+
 pub struct DBusObject<'a> {
-    ifaces: Vec<DBusInterface>,
+    ifaces: BTreeMap<String, Box<DBusInterface>>,
 
     conn: &'a Connection,
     path: String,
 }
 
 impl<'a> DBusObject<'a> {
-    pub fn new(conn: &'a Connection, ifaces: Vec<DBusInterface>, path: &str) -> Result<Self, Error> {
+    pub fn new(conn: &'a Connection, ifaces: BTreeMap<String, Box<DBusInterface>>, path: &str) -> Result<Self, Error> {
         try!(conn.register_object_path(path));
 
         Ok(DBusObject {

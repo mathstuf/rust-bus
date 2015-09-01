@@ -27,7 +27,7 @@ impl<'a> DBusServer<'a> {
         })
     }
 
-    pub fn add_object(&mut self, path: &str, ifaces: Vec<DBusInterface>) -> Result<&DBusObject<'a>, Box<Error>> {
+    pub fn add_object(&mut self, path: &str, ifaces: BTreeMap<String, Box<DBusInterface>>) -> Result<&DBusObject<'a>, Box<Error>> {
         match self.objects.entry(path.to_string()) {
             Entry::Vacant(v)    => Ok(v.insert(try!(DBusObject::new(self.conn, ifaces, path)))),
             Entry::Occupied(_)  => Err(Box::new(DBusError::PathAlreadyRegistered(path.to_string()))),
