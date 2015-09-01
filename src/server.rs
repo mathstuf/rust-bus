@@ -1,5 +1,5 @@
 extern crate dbus;
-use self::dbus::{Connection, NameFlag, ReleaseNameReply};
+use self::dbus::{Connection, ConnectionItem, Message, NameFlag, ReleaseNameReply};
 
 use super::error::DBusError;
 use super::interface::DBusInterface;
@@ -49,6 +49,24 @@ impl<'a> DBusServer<'a> {
             Entry::Vacant(v)    => { v.insert(vec![callback]); },
             Entry::Occupied(o)  => o.into_mut().push(callback),
         };
+    }
+
+    pub fn run(&mut self) -> () {
+        self.conn.iter(100).fold((), |_, item| {
+            match item {
+                ConnectionItem::MethodCall(m)   => self._call_method(m),
+                ConnectionItem::Signal(s)       => self._match_signal(s),
+                ConnectionItem::Nothing         => (),
+            }
+        });
+    }
+
+    fn _call_method(&mut self, m: Message) -> () {
+        // TODO: Implement.
+    }
+
+    fn _match_signal(&self, m: Message) -> () {
+        // TODO: Implement.
     }
 }
 
