@@ -27,6 +27,12 @@ impl<'a> DBusObject<'a> {
     pub fn path(&self) -> &str {
         &self.path[..]
     }
+
+    pub fn get_interface(&self, interface: &str) -> Option<&DBusInterface> {
+        self.ifaces.get(interface).map(|iface| {
+            &**iface
+        })
+    }
 }
 
 impl<'a> Drop for DBusObject<'a> {
