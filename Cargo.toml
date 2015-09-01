@@ -1,0 +1,15 @@
+[package]
+name = "rust-ez-dbus"
+version = "0.0.1"
+authors = ["Ben Boeckel <mathstuf@gmail.com>"]
+license = "BSD"
+description = """
+Convenience wrappers for exposing a D-Bus interface.
+"""
+
+[dependencies]
+dbus = "0.1.1"
+
+[lib]
+name = "ez_dbus"
+path = "src/lib.rs"
