@@ -4,6 +4,7 @@ use self::dbus::{Connection, NameFlag, ReleaseNameReply};
 use super::error::DBusError;
 use super::interface::DBusInterface;
 use super::object::DBusObject;
+use super::signal::DBusSignal;
 
 use std::collections::btree_map::{BTreeMap, Entry};
 use std::error::Error;
@@ -13,6 +14,7 @@ pub struct DBusServer<'a> {
     name: String,
 
     objects: BTreeMap<String, DBusObject<'a>>,
+    signals: BTreeMap<DBusSignal, Vec<fn (&Connection, &DBusSignal) -> ()>>
 }
 
 impl<'a> DBusServer<'a> {
@@ -24,6 +26,7 @@ impl<'a> DBusServer<'a> {
             name: name.to_string(),
 
             objects: BTreeMap::new(),
+            signals: BTreeMap::new(),
         })
     }
 
@@ -39,6 +42,13 @@ impl<'a> DBusServer<'a> {
             Some(_) => Ok(()),
             None    => Err(DBusError::NoSuchPath(path.to_string())),
         }
+    }
+
+    pub fn connect(&mut self, signal: DBusSignal, callback: fn (&Connection, &DBusSignal) -> ()) -> () {
+        match self.signals.entry(signal) {
+            Entry::Vacant(v)    => { v.insert(vec![callback]); },
+            Entry::Occupied(o)  => o.into_mut().push(callback),
+        };
     }
 }
 
