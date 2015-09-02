@@ -72,7 +72,7 @@ impl<'a> DBusServer<'a> {
 
 impl<'a> Drop for DBusServer<'a> {
     fn drop(&mut self) {
-        let res = self.conn.release_name(&self.name[..]);
+        let res = self.conn.release_name(&self.name);
         match res {
             Ok(reply) =>
                 match reply {
