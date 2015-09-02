@@ -1,5 +1,8 @@
 use super::interface::DBusInterface;
 
+extern crate core;
+use self::core::ops::Deref;
+
 extern crate dbus;
 use self::dbus::{Connection, Error};
 
@@ -30,7 +33,7 @@ impl<'a> DBusObject<'a> {
 
     pub fn get_interface(&self, interface: &str) -> Option<&DBusInterface> {
         self.ifaces.get(interface).map(|iface| {
-            &**iface
+            iface.deref()
         })
     }
 }
