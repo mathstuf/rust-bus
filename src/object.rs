@@ -28,7 +28,7 @@ impl<'a> DBusObject<'a> {
     }
 
     pub fn path(&self) -> &str {
-        &self.path[..]
+        &self.path
     }
 
     pub fn get_interface(&self, interface: &str) -> Option<&DBusInterface> {
