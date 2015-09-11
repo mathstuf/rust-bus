@@ -84,7 +84,17 @@ impl<'a> DBusServer<'a> {
     }
 
     fn _match_signal(&self, m: Message) -> () {
-        // TODO: Implement.
+        let ref signals = self.signals;
+        let conn = self.conn;
+
+        extract_target(&m).and_then(|signal| {
+            signals.get(&signal).map(|fs| {
+                fs.iter().fold((conn, signal), |(conn, signal), f| {
+                    f(&conn, &signal);
+                    (conn, signal)
+                })
+            })
+        });
     }
 }
 
