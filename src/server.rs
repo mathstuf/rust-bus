@@ -1,9 +1,8 @@
 extern crate dbus;
 use self::dbus::{Connection, ConnectionItem, Message, NameFlag, ReleaseNameReply};
+use self::dbus::obj::ObjectPath;
 
 use super::error::DBusError;
-use super::interface::DBusInterface;
-use super::object::DBusObject;
 use super::target::{DBusTarget, extract_target};
 
 use std::collections::btree_map::{BTreeMap, Entry};
@@ -13,7 +12,7 @@ pub struct DBusServer<'a> {
     conn: &'a Connection,
     name: String,
 
-    objects: BTreeMap<String, DBusObject<'a>>,
+    objects: BTreeMap<String, ObjectPath<'a>>,
     signals: BTreeMap<DBusTarget, Vec<fn (&Connection, &DBusTarget) -> ()>>
 }
 
@@ -30,9 +29,19 @@ impl<'a> DBusServer<'a> {
         })
     }
 
-    pub fn add_object(&mut self, path: &str, ifaces: BTreeMap<String, Box<DBusInterface>>) -> Result<&DBusObject<'a>, Box<Error>> {
+    pub fn add_object(&mut self, path: &str, add_interfaces: fn (&mut ObjectPath<'a>) -> ()) -> Result<(), Box<Error>> {
         match self.objects.entry(path.to_string()) {
-            Entry::Vacant(v)    => Ok(v.insert(try!(DBusObject::new(self.conn, ifaces, path)))),
+            Entry::Vacant(v)    => {
+                let mut obj = ObjectPath::new(self.conn, path, true);
+                try!(obj.set_registered(true));
+
+                // Add interfaces.
+                add_interfaces(&mut obj);
+
+                v.insert(obj);
+
+                Ok(())
+            },
             Entry::Occupied(_)  => Err(Box::new(DBusError::PathAlreadyRegistered(path.to_string()))),
         }
     }
@@ -62,25 +71,18 @@ impl<'a> DBusServer<'a> {
     }
 
     fn _call_method(&mut self, m: Message) -> () {
-        let conn = self.conn;
-
-        self._find_interface(&m).map(|(ref mut iface, ref method)| {
-            iface.call_method(&method, conn, &m).map(|result| {
-                conn.send(result)
+        self.objects.iter_mut().fold(Some(m), |opt_m, (_, object)| {
+            opt_m.and_then(|mut m| {
+                match object.handle_message(&mut m) {
+                    None          => Some(m),
+                    Some(Ok(()))  => None,
+                    Some(Err(())) => {
+                        println!("failed to send a reply for {:?}", m);
+                        None
+                    },
+                }
             })
         });
-    }
-
-    fn _find_interface(&mut self, m: &Message) -> Option<(&mut DBusInterface, String)> {
-        let ref mut objects = self.objects;
-
-        extract_target(&m).and_then(move |method| {
-            objects.get_mut(&method.object).and_then(|dbus_object| {
-                dbus_object.get_interface_mut(&method.interface).map(|dbus_interface| {
-                    (dbus_interface, method.method.clone())
-                })
-            })
-        })
     }
 
     fn _match_signal(&self, m: Message) -> () {
