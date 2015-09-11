@@ -7,13 +7,17 @@ use super::target::{DBusTarget, extract_target};
 
 use std::collections::btree_map::{BTreeMap, Entry};
 use std::error::Error;
+use std::rc::Rc;
+use std::cell::RefCell;
+
+pub type DBusSignalCallback = Box<FnMut(&Connection, &DBusTarget) -> ()>;
 
 pub struct DBusServer<'a> {
     conn: &'a Connection,
     name: String,
 
     objects: BTreeMap<String, ObjectPath<'a>>,
-    signals: BTreeMap<DBusTarget, Vec<fn (&Connection, &DBusTarget) -> ()>>
+    signals: BTreeMap<DBusTarget, Vec<Rc<RefCell<DBusSignalCallback>>>>
 }
 
 impl<'a> DBusServer<'a> {
@@ -53,10 +57,11 @@ impl<'a> DBusServer<'a> {
         }
     }
 
-    pub fn connect(&mut self, signal: DBusTarget, callback: fn (&Connection, &DBusTarget) -> ()) -> () {
+    pub fn connect(&mut self, signal: DBusTarget, callback: DBusSignalCallback) -> () {
+        let cb = Rc::new(RefCell::new(callback));
         match self.signals.entry(signal) {
-            Entry::Vacant(v)    => { v.insert(vec![callback]); },
-            Entry::Occupied(o)  => o.into_mut().push(callback),
+            Entry::Vacant(v)    => { v.insert(vec![cb]); },
+            Entry::Occupied(o)  => o.into_mut().push(cb),
         };
     }
 
@@ -91,9 +96,9 @@ impl<'a> DBusServer<'a> {
 
         extract_target(&m).and_then(|signal| {
             signals.get(&signal).map(|fs| {
-                fs.iter().fold((conn, signal), |(conn, signal), f| {
-                    f(&conn, &signal);
-                    (conn, signal)
+                fs.iter().map(|f| {
+                    let mut closure = f.borrow_mut();
+                    (&mut *closure)(&conn, &signal)
                 })
             })
         });
