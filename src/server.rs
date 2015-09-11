@@ -4,7 +4,7 @@ use self::dbus::{Connection, ConnectionItem, Message, NameFlag, ReleaseNameReply
 use super::error::DBusError;
 use super::interface::DBusInterface;
 use super::object::DBusObject;
-use super::target::DBusTarget;
+use super::target::{DBusTarget, extract_target};
 
 use std::collections::btree_map::{BTreeMap, Entry};
 use std::error::Error;
@@ -62,7 +62,25 @@ impl<'a> DBusServer<'a> {
     }
 
     fn _call_method(&mut self, m: Message) -> () {
-        // TODO: Implement.
+        let conn = self.conn;
+
+        self._find_interface(&m).map(|(ref mut iface, ref method)| {
+            iface.call_method(&method, conn, &m).map(|result| {
+                conn.send(result)
+            })
+        });
+    }
+
+    fn _find_interface(&mut self, m: &Message) -> Option<(&mut DBusInterface, String)> {
+        let ref mut objects = self.objects;
+
+        extract_target(&m).and_then(move |method| {
+            objects.get_mut(&method.1).and_then(|dbus_object| {
+                dbus_object.get_interface_mut(&method.0).map(|dbus_interface| {
+                    (dbus_interface, method.2.clone())
+                })
+            })
+        })
     }
 
     fn _match_signal(&self, m: Message) -> () {
