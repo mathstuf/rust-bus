@@ -1,10 +1,19 @@
 extern crate dbus;
 use self::dbus::Message;
 
-pub type DBusTarget = (String, String, String);
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
+pub struct DBusTarget {
+    pub interface: String,
+    pub object: String,
+    pub method: String,
+}
 
 pub fn make_target(interface: String, object: String, method: String) -> DBusTarget {
-    (interface, object, method)
+    DBusTarget {
+        interface: interface,
+        object: object,
+        method: method,
+    }
 }
 
 pub fn extract_target(m: &Message) -> Option<DBusTarget> {
@@ -13,7 +22,7 @@ pub fn extract_target(m: &Message) -> Option<DBusTarget> {
     opt_interface.and_then(|interface| {
         opt_object.and_then(|object| {
             opt_method.map(|method| {
-                (interface, object, method)
+                make_target(interface, object, method)
             })
         })
     })

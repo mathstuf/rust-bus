@@ -75,9 +75,9 @@ impl<'a> DBusServer<'a> {
         let ref mut objects = self.objects;
 
         extract_target(&m).and_then(move |method| {
-            objects.get_mut(&method.1).and_then(|dbus_object| {
-                dbus_object.get_interface_mut(&method.0).map(|dbus_interface| {
-                    (dbus_interface, method.2.clone())
+            objects.get_mut(&method.object).and_then(|dbus_object| {
+                dbus_object.get_interface_mut(&method.interface).map(|dbus_interface| {
+                    (dbus_interface, method.method.clone())
                 })
             })
         })
