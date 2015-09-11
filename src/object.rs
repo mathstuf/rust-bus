@@ -33,8 +33,17 @@ impl<'a> DBusObject<'a> {
 
     pub fn get_interface(&self, interface: &str) -> Option<&DBusInterface> {
         self.ifaces.get(interface).map(|iface| {
+            // FIXME: Why is .deref() necessary?
             iface.deref()
         })
+    }
+
+    pub fn get_interface_mut<'i>(&'i mut self, interface: &str) -> Option<&'i mut (DBusInterface + 'i)> {
+        self.ifaces.get_mut(interface).map(|iface| ->
+            // FIXME: Why is this not just iface.deref_mut().
+            // FIXME: Why is .deref_mut() necessary?
+            &'i mut DBusInterface { &mut **iface }
+        )
     }
 }
 
