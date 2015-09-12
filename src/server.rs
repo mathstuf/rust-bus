@@ -49,11 +49,7 @@ impl<'a> DBusServer<'a> {
     }
 
     pub fn add_object(&mut self, path: &str, iface_map: DBusInterfaceMap<'a>) -> Result<&mut Self, DBusError> {
-        // XXX: Use `.map` when type resolution works better. Currently, `.map` causes the caller
-        // type to be set in stone due to eager type resolution and no fluidity in setting it. This
-        // causes the type to be too concrete on the caller side which then fails to map to the end
-        // result type of `.map` even though `.map` is "transparent" to the error type.
-        Result::map(match self.objects.entry(path.to_owned()) {
+        match self.objects.entry(path.to_owned()) {
             Entry::Vacant(v)    => {
                 let obj = try!(DBusObject::new(self.conn, path, iface_map));
 
@@ -62,7 +58,7 @@ impl<'a> DBusServer<'a> {
                 Ok(())
             },
             Entry::Occupied(_)  => Err(DBusError::PathAlreadyRegistered(path.to_owned())),
-        }, |_| self)
+        }.map(|_| self)
     }
 
     pub fn remove_object(&mut self, path: &str) -> Result<&mut Self, DBusError> {
