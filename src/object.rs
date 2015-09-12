@@ -13,7 +13,7 @@ pub struct DBusObject<'a> {
 
 impl<'a> DBusObject<'a> {
     pub fn new(conn: &'a DBusConnection, path: &str, iface_map: DBusInterfaceMap<'a>) -> Result<DBusObject<'a>, DBusError> {
-        let mut obj = ObjectPath::new(conn, path, true);
+        let mut obj = ObjectPath::new(conn._connection(), path, true);
 
         iface_map.into_iter().fold((), |_, (name, iface)| {
             obj.insert_interface(name, iface)

@@ -8,7 +8,6 @@ mod server;
 mod target;
 
 pub use connection::DBusConnection;
-pub use connection::DBusBusType;
 pub use error::DBusError;
 pub use interface::DBusInterface;
 pub use interface::DBusInterfaceMap;

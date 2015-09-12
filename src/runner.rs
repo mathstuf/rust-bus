@@ -1,22 +1,20 @@
 extern crate dbus;
 use self::dbus::ConnectionItem;
 
-use super::connection::{DBusBusType, DBusConnection};
+use super::connection::DBusConnection;
 use super::error::DBusError;
 use super::server::DBusServer;
 
 use std::collections::btree_map::{BTreeMap, Entry};
 
 pub struct DBusRunner<'a> {
-    conn: DBusConnection,
+    conn: &'a DBusConnection,
 
     servers: BTreeMap<String, DBusServer<'a>>,
 }
 
 impl<'a> DBusRunner<'a> {
-    pub fn new(bus: DBusBusType) -> Result<DBusRunner<'a>, DBusError> {
-        let conn = try!(DBusConnection::get_private(bus));
-
+    pub fn new(conn: &'a DBusConnection) -> Result<DBusRunner<'a>, DBusError> {
         Ok(DBusRunner {
             conn: conn,
 
@@ -24,7 +22,7 @@ impl<'a> DBusRunner<'a> {
         })
     }
 
-    pub fn add_server(&'a mut self, name: &str) -> Result<&'a mut DBusServer<'a>, DBusError> {
+    pub fn add_server(&mut self, name: &str) -> Result<&mut DBusServer<'a>, DBusError> {
         match self.servers.entry(name.to_owned()) {
             Entry::Vacant(v)    => {
                 let server = try!(DBusServer::new(&self.conn, name));
@@ -45,7 +43,7 @@ impl<'a> DBusRunner<'a> {
     pub fn run(&mut self, timeout: i32) -> () {
         let servers = &mut self.servers;
 
-        self.conn.iter(timeout).fold((), |_, item| {
+        self.conn._connection().iter(timeout).fold((), |_, item| {
             match item {
                 ConnectionItem::MethodCall(m) => Some(m),
                 ConnectionItem::Signal(s)     => Some(s),

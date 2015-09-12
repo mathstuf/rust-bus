@@ -32,7 +32,7 @@ pub struct DBusServer<'a> {
 
 impl<'a> DBusServer<'a> {
     pub fn new(conn: &'a DBusConnection, name: &str) -> Result<DBusServer<'a>, DBusError> {
-        try!(conn.register_name(name, NameFlag::DoNotQueue as u32));
+        try!(conn._connection().register_name(name, NameFlag::DoNotQueue as u32));
 
         Ok(DBusServer {
             conn: conn,
@@ -69,10 +69,11 @@ impl<'a> DBusServer<'a> {
     }
 
     pub fn connect(&mut self, signal: DBusTarget, callback: DBusSignalHandler) -> Result<&mut Self, DBusError> {
-        try!(self.conn.add_match(&format!("type='signal',interface='{}',path='{}',member='{}'",
-                                          signal.interface,
-                                          signal.object,
-                                          signal.method)));
+        let dbus_match = format!("type='signal',interface='{}',path='{}',member='{}'",
+                                 signal.interface,
+                                 signal.object,
+                                 signal.method);
+        try!(self.conn._connection().add_match(&dbus_match));
 
         _add_handler(&mut self.signals, signal, callback);
 
@@ -80,10 +81,11 @@ impl<'a> DBusServer<'a> {
     }
 
     pub fn connect_namespace(&mut self, signal: DBusTarget, callback: DBusSignalHandler) -> Result<&mut Self, DBusError> {
-        try!(self.conn.add_match(&format!("type='signal',interface='{}',path_namespace='{}',member='{}'",
-                                          signal.interface,
-                                          signal.object,
-                                          signal.method)));
+        let dbus_match = format!("type='signal',interface='{}',path_namespace='{}',member='{}'",
+                                 signal.interface,
+                                 signal.object,
+                                 signal.method);
+        try!(self.conn._connection().add_match(&dbus_match));
 
         _add_handler(&mut self.namespace_signals, signal, callback);
 
@@ -140,7 +142,7 @@ impl<'a> DBusServer<'a> {
 
 impl<'a> Drop for DBusServer<'a> {
     fn drop(&mut self) {
-        let res = self.conn.release_name(&self.name);
+        let res = self.conn._connection().release_name(&self.name);
         match res {
             Ok(reply) =>
                 match reply {
