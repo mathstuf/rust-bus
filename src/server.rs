@@ -13,7 +13,8 @@ pub struct DBusServer<'a> {
     name: String,
 
     objects: BTreeMap<String, ObjectPath<'a>>,
-    signals: BTreeMap<DBusTarget, Vec<fn (&Connection, &DBusTarget) -> ()>>
+    signals: BTreeMap<DBusTarget, Vec<fn (&Connection, &DBusTarget) -> ()>>,
+    namespace_signals: BTreeMap<DBusTarget, Vec<fn (&Connection, &DBusTarget) -> ()>>,
 }
 
 impl<'a> DBusServer<'a> {
@@ -26,6 +27,7 @@ impl<'a> DBusServer<'a> {
 
             objects: BTreeMap::new(),
             signals: BTreeMap::new(),
+            namespace_signals: BTreeMap::new(),
         })
     }
 
@@ -68,6 +70,14 @@ impl<'a> DBusServer<'a> {
         };
 
         self
+
+    pub fn connect_namespace(&mut self, signal: DBusTarget, callback: fn (&Connection, &DBusTarget) -> ()) -> &mut Self {
+        match self.namespace_signals.entry(signal) {
+            Entry::Vacant(v)    => { v.insert(vec![callback]); },
+            Entry::Occupied(o)  => o.into_mut().push(callback),
+        };
+
+        self
     }
 
     pub fn handle_message<'b>(&mut self, m: &'b mut Message) -> Option<&'b mut Message> {
@@ -96,6 +106,12 @@ impl<'a> DBusServer<'a> {
     fn _match_signal<'b>(&self, m: &'b mut Message) -> &'b mut Message {
         DBusTarget::extract(m).map(|signal| {
             self.signals.get(&signal).map(|fs| {
+                fs.iter().map(|f| {
+                    f(&self.conn, &signal);
+                })
+            });
+
+            self.namespace_signals.get(&signal).map(|fs| {
                 fs.iter().map(|f| {
                     f(&self.conn, &signal);
                 })
