@@ -4,6 +4,7 @@ use self::dbus::obj::ObjectPath;
 
 use super::connection::DBusConnection;
 use super::error::DBusError;
+use super::interface::DBusInterfaceMap;
 use super::message::{DBusMessage, DBusMessageType};
 use super::target::DBusTarget;
 
@@ -36,7 +37,7 @@ impl<'a> DBusServer<'a> {
         &self.name
     }
 
-    pub fn add_object(&mut self, path: &str, add_interfaces: fn (&mut ObjectPath<'a>) -> ()) -> Result<&mut Self, DBusError> {
+    pub fn add_object(&mut self, path: &str, iface_map: DBusInterfaceMap<'a>) -> Result<&mut Self, DBusError> {
         // XXX: Use `.map` when type resolution works better. Currently, `.map` causes the caller
         // type to be set in stone due to eager type resolution and no fluidity in setting it. This
         // causes the type to be too concrete on the caller side which then fails to map to the end
@@ -47,7 +48,9 @@ impl<'a> DBusServer<'a> {
                 try!(obj.set_registered(true));
 
                 // Add interfaces.
-                add_interfaces(&mut obj);
+                iface_map.into_iter().fold((), |_, (name, iface)| {
+                    obj.insert_interface(name, iface)
+                });
 
                 v.insert(obj);
 
