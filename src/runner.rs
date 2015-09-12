@@ -24,7 +24,7 @@ impl<'a> DBusRunner<'a> {
         })
     }
 
-    pub fn add_server(&'a mut self, name: &str) -> Result<&mut DBusServer<'a>, DBusError> {
+    pub fn add_server(&'a mut self, name: &str) -> Result<&'a mut DBusServer<'a>, DBusError> {
         match self.servers.entry(name.to_owned()) {
             Entry::Vacant(v)    => {
                 let server = try!(DBusServer::new(&self.conn, name));
