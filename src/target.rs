@@ -8,11 +8,11 @@ pub struct DBusTarget {
     pub method: String,
 }
 
-pub fn make_target(interface: String, object: String, method: String) -> DBusTarget {
+pub fn make_target<I: ToString, O: ToString, M: ToString>(interface: I, object: O, method: M) -> DBusTarget {
     DBusTarget {
-        interface: interface,
-        object: object,
-        method: method,
+        interface: interface.to_string(),
+        object: object.to_string(),
+        method: method.to_string(),
     }
 }
 
