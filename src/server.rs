@@ -94,16 +94,12 @@ impl<'a> DBusServer<'a> {
     }
 
     fn _match_signal<'b>(&self, m: &'b mut Message) -> &'b mut Message {
-        let ref signals = self.signals;
-        let conn = self.conn;
-
-        DBusTarget::extract(m).and_then(|signal| {
-            signals.get(&signal).map(|fs| {
-                fs.iter().fold((conn, signal), |(conn, signal), f| {
-                    f(&conn, &signal);
-                    (conn, signal)
+        DBusTarget::extract(m).map(|signal| {
+            self.signals.get(&signal).map(|fs| {
+                fs.iter().map(|f| {
+                    f(&self.conn, &signal);
                 })
-            })
+            });
         });
 
         m
