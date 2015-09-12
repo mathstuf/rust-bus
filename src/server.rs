@@ -1,7 +1,8 @@
 extern crate dbus;
-use self::dbus::{Connection, Message, MessageType, NameFlag, ReleaseNameReply};
+use self::dbus::{Message, MessageType, NameFlag, ReleaseNameReply};
 use self::dbus::obj::ObjectPath;
 
+use super::connection::DBusConnection;
 use super::error::DBusError;
 use super::target::DBusTarget;
 
@@ -9,16 +10,16 @@ use std::collections::btree_map::{BTreeMap, Entry};
 use std::error::Error;
 
 pub struct DBusServer<'a> {
-    conn: &'a Connection,
+    conn: &'a DBusConnection,
     name: String,
 
     objects: BTreeMap<String, ObjectPath<'a>>,
-    signals: BTreeMap<DBusTarget, Vec<fn (&Connection, &DBusTarget) -> ()>>,
-    namespace_signals: BTreeMap<DBusTarget, Vec<fn (&Connection, &DBusTarget) -> ()>>,
+    signals: BTreeMap<DBusTarget, Vec<fn (&DBusConnection, &DBusTarget) -> ()>>,
+    namespace_signals: BTreeMap<DBusTarget, Vec<fn (&DBusConnection, &DBusTarget) -> ()>>,
 }
 
 impl<'a> DBusServer<'a> {
-    pub fn new(conn: &'a Connection, name: &str) -> Result<DBusServer<'a>, dbus::Error> {
+    pub fn new(conn: &'a DBusConnection, name: &str) -> Result<DBusServer<'a>, dbus::Error> {
         try!(conn.register_name(name, NameFlag::DoNotQueue as u32));
 
         Ok(DBusServer {
@@ -63,7 +64,7 @@ impl<'a> DBusServer<'a> {
         }
     }
 
-    pub fn connect(&mut self, signal: DBusTarget, callback: fn (&Connection, &DBusTarget) -> ()) -> Result<&mut Self, dbus::Error> {
+    pub fn connect(&mut self, signal: DBusTarget, callback: fn (&DBusConnection, &DBusTarget) -> ()) -> Result<&mut Self, dbus::Error> {
         try!(self.conn.add_match(&format!("type='signal',interface='{}',path='{}',member='{}'",
                                           signal.interface,
                                           signal.object,
@@ -77,7 +78,7 @@ impl<'a> DBusServer<'a> {
         Ok(self)
     }
 
-    pub fn connect_namespace(&mut self, signal: DBusTarget, callback: fn (&Connection, &DBusTarget) -> ()) -> Result<&mut Self, dbus::Error> {
+    pub fn connect_namespace(&mut self, signal: DBusTarget, callback: fn (&DBusConnection, &DBusTarget) -> ()) -> Result<&mut Self, dbus::Error> {
         try!(self.conn.add_match(&format!("type='signal',interface='{}',path_namespace='{}',member='{}'",
                                           signal.interface,
                                           signal.object,
