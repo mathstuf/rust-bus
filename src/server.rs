@@ -10,13 +10,24 @@ use super::target::DBusTarget;
 
 use std::collections::btree_map::{BTreeMap, Entry};
 
+pub type DBusSignalHandler = Box<FnMut(&DBusConnection, &DBusTarget) -> ()>;
+type DBusSignalHandlers = Vec<DBusSignalHandler>;
+type DBusSignalHandlerMap = BTreeMap<DBusTarget, DBusSignalHandlers>;
+
+fn _add_handler(handlers: &mut DBusSignalHandlerMap, signal: DBusTarget, handler: DBusSignalHandler) {
+    match handlers.entry(signal) {
+        Entry::Vacant(v)    => { v.insert(vec![handler]); },
+        Entry::Occupied(o)  => o.into_mut().push(handler),
+    };
+}
+
 pub struct DBusServer<'a> {
     conn: &'a DBusConnection,
     name: String,
 
     objects: BTreeMap<String, DBusObject<'a>>,
-    signals: BTreeMap<DBusTarget, Vec<fn (&DBusConnection, &DBusTarget) -> ()>>,
-    namespace_signals: BTreeMap<DBusTarget, Vec<fn (&DBusConnection, &DBusTarget) -> ()>>,
+    signals: DBusSignalHandlerMap,
+    namespace_signals: DBusSignalHandlerMap,
 }
 
 impl<'a> DBusServer<'a> {
@@ -61,30 +72,24 @@ impl<'a> DBusServer<'a> {
         }
     }
 
-    pub fn connect(&mut self, signal: DBusTarget, callback: fn (&DBusConnection, &DBusTarget) -> ()) -> Result<&mut Self, DBusError> {
+    pub fn connect(&mut self, signal: DBusTarget, callback: DBusSignalHandler) -> Result<&mut Self, DBusError> {
         try!(self.conn.add_match(&format!("type='signal',interface='{}',path='{}',member='{}'",
                                           signal.interface,
                                           signal.object,
                                           signal.method)));
 
-        match self.signals.entry(signal) {
-            Entry::Vacant(v)    => { v.insert(vec![callback]); },
-            Entry::Occupied(o)  => o.into_mut().push(callback),
-        };
+        _add_handler(&mut self.signals, signal, callback);
 
         Ok(self)
     }
 
-    pub fn connect_namespace(&mut self, signal: DBusTarget, callback: fn (&DBusConnection, &DBusTarget) -> ()) -> Result<&mut Self, DBusError> {
+    pub fn connect_namespace(&mut self, signal: DBusTarget, callback: DBusSignalHandler) -> Result<&mut Self, DBusError> {
         try!(self.conn.add_match(&format!("type='signal',interface='{}',path_namespace='{}',member='{}'",
                                           signal.interface,
                                           signal.object,
                                           signal.method)));
 
-        match self.namespace_signals.entry(signal) {
-            Entry::Vacant(v)    => { v.insert(vec![callback]); },
-            Entry::Occupied(o)  => o.into_mut().push(callback),
-        };
+        _add_handler(&mut self.namespace_signals, signal, callback);
 
         Ok(self)
     }
@@ -112,17 +117,19 @@ impl<'a> DBusServer<'a> {
         })
     }
 
-    fn _match_signal<'b>(&self, m: &'b mut DBusMessage) -> &'b mut DBusMessage {
+    fn _match_signal<'b>(&mut self, m: &'b mut DBusMessage) -> &'b mut DBusMessage {
+        let conn = (&self.conn).clone();
+
         DBusTarget::extract(m).map(|signal| {
-            self.signals.get(&signal).map(|fs| {
-                fs.iter().map(|f| {
-                    f(&self.conn, &signal);
+            self.signals.get_mut(&signal).map(|handlers| {
+                handlers.iter_mut().map(|f| {
+                    f(conn, &signal);
                 })
             });
 
-            self.namespace_signals.get(&signal).map(|fs| {
-                fs.iter().map(|f| {
-                    f(&self.conn, &signal);
+            self.namespace_signals.get_mut(&signal).map(|handlers| {
+                handlers.iter_mut().map(|f| {
+                    f(conn, &signal);
                 })
             });
         });

@@ -17,4 +17,5 @@ pub use message::DBusMessageType;
 pub use object::DBusObject;
 pub use runner::DBusRunner;
 pub use server::DBusServer;
+pub use server::DBusSignalHandler;
 pub use target::DBusTarget;
