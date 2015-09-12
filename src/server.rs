@@ -24,6 +24,7 @@ fn _add_handler(handlers: &mut DBusSignalHandlerMap, signal: DBusTarget, handler
 pub struct DBusServer<'a> {
     conn: &'a DBusConnection,
     name: String,
+    can_handle: bool,
 
     objects: BTreeMap<String, DBusObject<'a>>,
     signals: DBusSignalHandlerMap,
@@ -31,12 +32,25 @@ pub struct DBusServer<'a> {
 }
 
 impl<'a> DBusServer<'a> {
+    pub fn new_listener(conn: &'a DBusConnection, name: &str) -> Result<DBusServer<'a>, DBusError> {
+        Ok(DBusServer {
+            conn: conn,
+            name: name.to_owned(),
+            can_handle: false,
+
+            objects: BTreeMap::new(),
+            signals: BTreeMap::new(),
+            namespace_signals: BTreeMap::new(),
+        })
+    }
+
     pub fn new(conn: &'a DBusConnection, name: &str) -> Result<DBusServer<'a>, DBusError> {
         try!(conn._connection().register_name(name, NameFlag::DoNotQueue as u32));
 
         Ok(DBusServer {
             conn: conn,
             name: name.to_owned(),
+            can_handle: true,
 
             objects: BTreeMap::new(),
             signals: BTreeMap::new(),
@@ -49,6 +63,10 @@ impl<'a> DBusServer<'a> {
     }
 
     pub fn add_object(&mut self, path: &str, iface_map: DBusInterfaceMap<'a>) -> Result<&mut Self, DBusError> {
+        if !self.can_handle {
+            return Err(DBusError::NoServerName);
+        }
+
         match self.objects.entry(path.to_owned()) {
             Entry::Vacant(v)    => {
                 let obj = try!(DBusObject::new(self.conn, path, iface_map));
@@ -62,6 +80,10 @@ impl<'a> DBusServer<'a> {
     }
 
     pub fn remove_object(&mut self, path: &str) -> Result<&mut Self, DBusError> {
+        if !self.can_handle {
+            return Err(DBusError::NoServerName);
+        }
+
         match self.objects.remove(path) {
             Some(_) => Ok(self),
             None    => Err(DBusError::NoSuchPath(path.to_owned())),
@@ -142,6 +164,10 @@ impl<'a> DBusServer<'a> {
 
 impl<'a> Drop for DBusServer<'a> {
     fn drop(&mut self) {
+        if !self.can_handle {
+            return;
+        }
+
         let res = self.conn._connection().release_name(&self.name);
         match res {
             Ok(reply) =>

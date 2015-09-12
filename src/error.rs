@@ -6,6 +6,7 @@ use std::fmt::{Display, Formatter, Result};
 #[derive(Debug)]
 pub enum DBusError {
     ErrorMessage(dbus::Error),
+    NoServerName,
 
     ServerAlreadyRegistered(String),
     NoSuchServer(String),
@@ -17,6 +18,7 @@ impl Display for DBusError {
     fn fmt(&self, f: &mut Formatter) -> Result {
         match *self {
             DBusError::ErrorMessage(ref error)              => write!(f, "dbus error: {:?}: {:?}", error.name(), error.message()),
+            DBusError::NoServerName                         => write!(f, "listening server cannot handle methods"),
             DBusError::ServerAlreadyRegistered(ref server)  => write!(f, "server already registered: {}", server),
             DBusError::NoSuchServer(ref server)             => write!(f, "no such server: {}", server),
             DBusError::PathAlreadyRegistered(ref path)      => write!(f, "path already registered: {}", path),
