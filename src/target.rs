@@ -1,5 +1,4 @@
-extern crate dbus;
-use self::dbus::Message;
+use super::message::DBusMessage;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
 pub struct DBusTarget {
@@ -17,7 +16,7 @@ impl DBusTarget {
         }
     }
 
-    pub fn extract(m: &Message) -> Option<DBusTarget> {
+    pub fn extract(m: &DBusMessage) -> Option<DBusTarget> {
         let (_, opt_interface, opt_object, opt_method) = m.headers();
 
         opt_interface.and_then(|interface| {

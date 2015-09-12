@@ -1,9 +1,10 @@
 extern crate dbus;
-use self::dbus::{Message, MessageType, NameFlag, ReleaseNameReply};
+use self::dbus::{NameFlag, ReleaseNameReply};
 use self::dbus::obj::ObjectPath;
 
 use super::connection::DBusConnection;
 use super::error::DBusError;
+use super::message::{DBusMessage, DBusMessageType};
 use super::target::DBusTarget;
 
 use std::collections::btree_map::{BTreeMap, Entry};
@@ -91,15 +92,15 @@ impl<'a> DBusServer<'a> {
         Ok(self)
     }
 
-    pub fn handle_message<'b>(&mut self, m: &'b mut Message) -> Option<&'b mut Message> {
+    pub fn handle_message<'b>(&mut self, m: &'b mut DBusMessage) -> Option<&'b mut DBusMessage> {
         match m.msg_type() {
-            MessageType::Signal     => Some(self._match_signal(m)),
-            MessageType::MethodCall => self._call_method(m),
-            _                       => Some(m),
+            DBusMessageType::Signal     => Some(self._match_signal(m)),
+            DBusMessageType::MethodCall => self._call_method(m),
+            _                           => Some(m),
         }
     }
 
-    fn _call_method<'b>(&mut self, m: &'b mut Message) -> Option<&'b mut Message> {
+    fn _call_method<'b>(&mut self, m: &'b mut DBusMessage) -> Option<&'b mut DBusMessage> {
         self.objects.iter_mut().fold(Some(m), |opt_m, (_, object)| {
             opt_m.and_then(|mut m| {
                 match object.handle_message(&mut m) {
@@ -114,7 +115,7 @@ impl<'a> DBusServer<'a> {
         })
     }
 
-    fn _match_signal<'b>(&self, m: &'b mut Message) -> &'b mut Message {
+    fn _match_signal<'b>(&self, m: &'b mut DBusMessage) -> &'b mut DBusMessage {
         DBusTarget::extract(m).map(|signal| {
             self.signals.get(&signal).map(|fs| {
                 fs.iter().map(|f| {
