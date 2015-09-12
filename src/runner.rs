@@ -1,13 +1,11 @@
 extern crate dbus;
 use self::dbus::ConnectionItem;
 
-use super::connection::DBusConnection;
+use super::connection::{DBusBusType, DBusConnection};
 use super::error::DBusError;
 use super::server::DBusServer;
 
 use std::collections::btree_map::{BTreeMap, Entry};
-
-pub use self::dbus::BusType as DBusBusType;
 
 pub struct DBusRunner<'a> {
     conn: DBusConnection,
