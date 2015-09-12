@@ -26,7 +26,7 @@ impl<'a> DBusServer<'a> {
 
         Ok(DBusServer {
             conn: conn,
-            name: name.to_string(),
+            name: name.to_owned(),
 
             objects: BTreeMap::new(),
             signals: BTreeMap::new(),
@@ -34,7 +34,7 @@ impl<'a> DBusServer<'a> {
     }
 
     pub fn add_object(&mut self, path: &str, add_interfaces: fn (&mut ObjectPath<'a>) -> ()) -> Result<(), Box<Error>> {
-        match self.objects.entry(path.to_string()) {
+        match self.objects.entry(path.to_owned()) {
             Entry::Vacant(v)    => {
                 let mut obj = ObjectPath::new(self.conn, path, true);
                 try!(obj.set_registered(true));
@@ -46,14 +46,14 @@ impl<'a> DBusServer<'a> {
 
                 Ok(())
             },
-            Entry::Occupied(_)  => Err(Box::new(DBusError::PathAlreadyRegistered(path.to_string()))),
+            Entry::Occupied(_)  => Err(Box::new(DBusError::PathAlreadyRegistered(path.to_owned()))),
         }
     }
 
     pub fn remove_object(&mut self, path: &str) -> Result<(), DBusError> {
         match self.objects.remove(path) {
             Some(_) => Ok(()),
-            None    => Err(DBusError::NoSuchPath(path.to_string())),
+            None    => Err(DBusError::NoSuchPath(path.to_owned())),
         }
     }
 
