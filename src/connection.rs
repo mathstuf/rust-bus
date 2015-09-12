@@ -1,5 +1,5 @@
 extern crate dbus;
-use self::dbus::Connection;
+use self::dbus::{Connection, ConnectionItem};
 pub use self::dbus::BusType as DBusBusType;
 
 use super::error::DBusError;
@@ -41,5 +41,23 @@ impl<'a> DBusConnection<'a> {
             Some(_) => Ok(self),
             None    => Err(DBusError::NoSuchServer(name.to_owned())),
         }
+    }
+
+    pub fn run(&mut self, timeout: i32) -> () {
+        let servers = &mut self.servers;
+
+        self.conn.iter(timeout).fold((), |_, item| {
+            match item {
+                ConnectionItem::MethodCall(m) => Some(m),
+                ConnectionItem::Signal(s)     => Some(s),
+                ConnectionItem::Nothing       => None,
+            }.as_mut().map(|m| {
+                servers.iter_mut().fold(Some(m), |opt_m, (_, server)| {
+                    opt_m.and_then(|m| {
+                        server.handle_message(m)
+                    })
+                })
+            });
+        });
     }
 }
