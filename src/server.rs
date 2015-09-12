@@ -29,8 +29,12 @@ impl<'a> DBusServer<'a> {
         })
     }
 
-    pub fn add_object(&mut self, path: &str, add_interfaces: fn (&mut ObjectPath<'a>) -> ()) -> Result<(), Box<Error>> {
-        match self.objects.entry(path.to_owned()) {
+    pub fn add_object(&mut self, path: &str, add_interfaces: fn (&mut ObjectPath<'a>) -> ()) -> Result<&mut Self, Box<Error>> {
+        // XXX: Use `.map` when type resolution works better. Currently, `.map` causes the caller
+        // type to be set in stone due to eager type resolution and no fluidity in setting it. This
+        // causes the type to be too concrete on the caller side which then fails to map to the end
+        // result type of `.map` even though `.map` is "transparent" to the error type.
+        Result::map(match self.objects.entry(path.to_owned()) {
             Entry::Vacant(v)    => {
                 let mut obj = ObjectPath::new(self.conn, path, true);
                 try!(obj.set_registered(true));
@@ -43,21 +47,23 @@ impl<'a> DBusServer<'a> {
                 Ok(())
             },
             Entry::Occupied(_)  => Err(Box::new(DBusError::PathAlreadyRegistered(path.to_owned()))),
-        }
+        }, |_| self)
     }
 
-    pub fn remove_object(&mut self, path: &str) -> Result<(), DBusError> {
+    pub fn remove_object(&mut self, path: &str) -> Result<&mut Self, DBusError> {
         match self.objects.remove(path) {
-            Some(_) => Ok(()),
+            Some(_) => Ok(self),
             None    => Err(DBusError::NoSuchPath(path.to_owned())),
         }
     }
 
-    pub fn connect(&mut self, signal: DBusTarget, callback: fn (&Connection, &DBusTarget) -> ()) -> () {
+    pub fn connect(&mut self, signal: DBusTarget, callback: fn (&Connection, &DBusTarget) -> ()) -> &mut Self {
         match self.signals.entry(signal) {
             Entry::Vacant(v)    => { v.insert(vec![callback]); },
             Entry::Occupied(o)  => o.into_mut().push(callback),
         };
+
+        self
     }
 
     pub fn run(&mut self) -> () {
