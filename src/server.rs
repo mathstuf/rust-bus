@@ -117,19 +117,21 @@ impl<'a> DBusServer<'a> {
         let conn = (&self.conn).clone();
 
         DBusTarget::extract(m).map(|signal| {
-            self.signals.get_mut(&signal).map(|handlers| {
-                handlers.iter_mut().map(|f| {
-                    f(conn, &signal);
-                })
+            for handlers in self.signals.get_mut(&signal) {
+                for handler in handlers.iter_mut() {
+                    handler(conn, &signal);
+                }
+            }
+
+            let matched_handlers = self.namespace_signals.iter_mut().filter(|&(expect, _)| {
+                expect.namespace_eq(&signal)
             });
 
-            self.namespace_signals.iter_mut().filter(|&(expect, _)| {
-                expect.namespace_eq(&signal)
-            }).map(|(_, handlers)| {
-                handlers.iter_mut().map(|f| {
-                    f(conn, &signal);
-                })
-            }).collect::<Vec<_>>();
+            for (_, handlers) in matched_handlers {
+                for handler in handlers.iter_mut() {
+                    handler(conn, &signal);
+                };
+            };
         });
 
         m
