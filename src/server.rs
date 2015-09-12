@@ -63,21 +63,32 @@ impl<'a> DBusServer<'a> {
         }
     }
 
-    pub fn connect(&mut self, signal: DBusTarget, callback: fn (&Connection, &DBusTarget) -> ()) -> &mut Self {
+    pub fn connect(&mut self, signal: DBusTarget, callback: fn (&Connection, &DBusTarget) -> ()) -> Result<&mut Self, dbus::Error> {
+        try!(self.conn.add_match(&format!("type='signal',interface='{}',path='{}',member='{}'",
+                                          signal.interface,
+                                          signal.object,
+                                          signal.method)));
+
         match self.signals.entry(signal) {
             Entry::Vacant(v)    => { v.insert(vec![callback]); },
             Entry::Occupied(o)  => o.into_mut().push(callback),
         };
 
-        self
+        Ok(self)
+    }
 
-    pub fn connect_namespace(&mut self, signal: DBusTarget, callback: fn (&Connection, &DBusTarget) -> ()) -> &mut Self {
+    pub fn connect_namespace(&mut self, signal: DBusTarget, callback: fn (&Connection, &DBusTarget) -> ()) -> Result<&mut Self, dbus::Error> {
+        try!(self.conn.add_match(&format!("type='signal',interface='{}',path_namespace='{}',member='{}'",
+                                          signal.interface,
+                                          signal.object,
+                                          signal.method)));
+
         match self.namespace_signals.entry(signal) {
             Entry::Vacant(v)    => { v.insert(vec![callback]); },
             Entry::Occupied(o)  => o.into_mut().push(callback),
         };
 
-        self
+        Ok(self)
     }
 
     pub fn handle_message<'b>(&mut self, m: &'b mut Message) -> Option<&'b mut Message> {
