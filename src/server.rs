@@ -3,7 +3,7 @@ use self::dbus::{Connection, ConnectionItem, Message, NameFlag, ReleaseNameReply
 use self::dbus::obj::ObjectPath;
 
 use super::error::DBusError;
-use super::target::{DBusTarget, extract_target};
+use super::target::DBusTarget;
 
 use std::collections::btree_map::{BTreeMap, Entry};
 use std::error::Error;
@@ -89,7 +89,7 @@ impl<'a> DBusServer<'a> {
         let ref signals = self.signals;
         let conn = self.conn;
 
-        extract_target(&m).and_then(|signal| {
+        DBusTarget::extract(&m).and_then(|signal| {
             signals.get(&signal).map(|fs| {
                 fs.iter().fold((conn, signal), |(conn, signal), f| {
                     f(&conn, &signal);
