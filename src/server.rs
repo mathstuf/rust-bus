@@ -1,11 +1,11 @@
 extern crate dbus;
 use self::dbus::{NameFlag, ReleaseNameReply};
-use self::dbus::obj::ObjectPath;
 
 use super::connection::DBusConnection;
 use super::error::DBusError;
 use super::interface::DBusInterfaceMap;
 use super::message::{DBusMessage, DBusMessageType};
+use super::object::DBusObject;
 use super::target::DBusTarget;
 
 use std::collections::btree_map::{BTreeMap, Entry};
@@ -14,7 +14,7 @@ pub struct DBusServer<'a> {
     conn: &'a DBusConnection,
     name: String,
 
-    objects: BTreeMap<String, ObjectPath<'a>>,
+    objects: BTreeMap<String, DBusObject<'a>>,
     signals: BTreeMap<DBusTarget, Vec<fn (&DBusConnection, &DBusTarget) -> ()>>,
     namespace_signals: BTreeMap<DBusTarget, Vec<fn (&DBusConnection, &DBusTarget) -> ()>>,
 }
@@ -44,13 +44,7 @@ impl<'a> DBusServer<'a> {
         // result type of `.map` even though `.map` is "transparent" to the error type.
         Result::map(match self.objects.entry(path.to_owned()) {
             Entry::Vacant(v)    => {
-                let mut obj = ObjectPath::new(self.conn, path, true);
-                try!(obj.set_registered(true));
-
-                // Add interfaces.
-                iface_map.into_iter().fold((), |_, (name, iface)| {
-                    obj.insert_interface(name, iface)
-                });
+                let obj = try!(DBusObject::new(self.conn, path, iface_map));
 
                 v.insert(obj);
 
