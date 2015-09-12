@@ -7,7 +7,6 @@ use super::error::DBusError;
 use super::target::DBusTarget;
 
 use std::collections::btree_map::{BTreeMap, Entry};
-use std::error::Error;
 
 pub struct DBusServer<'a> {
     conn: &'a DBusConnection,
@@ -19,7 +18,7 @@ pub struct DBusServer<'a> {
 }
 
 impl<'a> DBusServer<'a> {
-    pub fn new(conn: &'a DBusConnection, name: &str) -> Result<DBusServer<'a>, dbus::Error> {
+    pub fn new(conn: &'a DBusConnection, name: &str) -> Result<DBusServer<'a>, DBusError> {
         try!(conn.register_name(name, NameFlag::DoNotQueue as u32));
 
         Ok(DBusServer {
@@ -36,7 +35,7 @@ impl<'a> DBusServer<'a> {
         &self.name
     }
 
-    pub fn add_object(&mut self, path: &str, add_interfaces: fn (&mut ObjectPath<'a>) -> ()) -> Result<&mut Self, Box<Error>> {
+    pub fn add_object(&mut self, path: &str, add_interfaces: fn (&mut ObjectPath<'a>) -> ()) -> Result<&mut Self, DBusError> {
         // XXX: Use `.map` when type resolution works better. Currently, `.map` causes the caller
         // type to be set in stone due to eager type resolution and no fluidity in setting it. This
         // causes the type to be too concrete on the caller side which then fails to map to the end
@@ -53,7 +52,7 @@ impl<'a> DBusServer<'a> {
 
                 Ok(())
             },
-            Entry::Occupied(_)  => Err(Box::new(DBusError::PathAlreadyRegistered(path.to_owned()))),
+            Entry::Occupied(_)  => Err(DBusError::PathAlreadyRegistered(path.to_owned())),
         }, |_| self)
     }
 
@@ -64,7 +63,7 @@ impl<'a> DBusServer<'a> {
         }
     }
 
-    pub fn connect(&mut self, signal: DBusTarget, callback: fn (&DBusConnection, &DBusTarget) -> ()) -> Result<&mut Self, dbus::Error> {
+    pub fn connect(&mut self, signal: DBusTarget, callback: fn (&DBusConnection, &DBusTarget) -> ()) -> Result<&mut Self, DBusError> {
         try!(self.conn.add_match(&format!("type='signal',interface='{}',path='{}',member='{}'",
                                           signal.interface,
                                           signal.object,
@@ -78,7 +77,7 @@ impl<'a> DBusServer<'a> {
         Ok(self)
     }
 
-    pub fn connect_namespace(&mut self, signal: DBusTarget, callback: fn (&DBusConnection, &DBusTarget) -> ()) -> Result<&mut Self, dbus::Error> {
+    pub fn connect_namespace(&mut self, signal: DBusTarget, callback: fn (&DBusConnection, &DBusTarget) -> ()) -> Result<&mut Self, DBusError> {
         try!(self.conn.add_match(&format!("type='signal',interface='{}',path_namespace='{}',member='{}'",
                                           signal.interface,
                                           signal.object,

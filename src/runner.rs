@@ -6,7 +6,6 @@ use super::error::DBusError;
 use super::server::DBusServer;
 
 use std::collections::btree_map::{BTreeMap, Entry};
-use std::error::Error;
 
 pub use self::dbus::BusType as DBusBusType;
 
@@ -17,7 +16,7 @@ pub struct DBusRunner<'a> {
 }
 
 impl<'a> DBusRunner<'a> {
-    pub fn new(bus: DBusBusType) -> Result<DBusRunner<'a>, dbus::Error> {
+    pub fn new(bus: DBusBusType) -> Result<DBusRunner<'a>, DBusError> {
         let conn = try!(DBusConnection::get_private(bus));
 
         Ok(DBusRunner {
@@ -27,14 +26,14 @@ impl<'a> DBusRunner<'a> {
         })
     }
 
-    pub fn add_server(&'a mut self, name: &str) -> Result<&mut DBusServer<'a>, Box<Error>> {
+    pub fn add_server(&'a mut self, name: &str) -> Result<&mut DBusServer<'a>, DBusError> {
         match self.servers.entry(name.to_owned()) {
             Entry::Vacant(v)    => {
                 let server = try!(DBusServer::new(&self.conn, name));
 
                 Ok(v.insert(server))
             },
-            Entry::Occupied(_)  => Err(Box::new(DBusError::ServerAlreadyRegistered(name.to_owned()))),
+            Entry::Occupied(_)  => Err(DBusError::ServerAlreadyRegistered(name.to_owned())),
         }
     }
 
