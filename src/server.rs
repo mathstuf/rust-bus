@@ -29,6 +29,10 @@ impl<'a> DBusServer<'a> {
         })
     }
 
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
     pub fn add_object(&mut self, path: &str, add_interfaces: fn (&mut ObjectPath<'a>) -> ()) -> Result<&mut Self, Box<Error>> {
         // XXX: Use `.map` when type resolution works better. Currently, `.map` causes the caller
         // type to be set in stone due to eager type resolution and no fluidity in setting it. This
