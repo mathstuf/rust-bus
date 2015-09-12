@@ -27,4 +27,10 @@ impl DBusTarget {
             })
         })
     }
+
+    pub fn namespace_eq(&self, t: &DBusTarget) -> bool {
+        self.interface == t.interface &&
+        self.method == t.method &&
+        t.object.starts_with(&format!("{}/", self.object))
+    }
 }

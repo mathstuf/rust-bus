@@ -127,11 +127,13 @@ impl<'a> DBusServer<'a> {
                 })
             });
 
-            self.namespace_signals.get_mut(&signal).map(|handlers| {
+            self.namespace_signals.iter_mut().filter(|&(expect, _)| {
+                expect.namespace_eq(&signal)
+            }).map(|(_, handlers)| {
                 handlers.iter_mut().map(|f| {
                     f(conn, &signal);
                 })
-            });
+            }).collect::<Vec<_>>();
         });
 
         m
