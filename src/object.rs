@@ -11,9 +11,9 @@ pub struct DBusObject {
 }
 
 impl DBusObject {
-    pub fn new(path: &str, interfaces: Rc<DBusInterfaceMap>) -> Self {
+    pub fn new<P: ToString>(path: P, interfaces: Rc<DBusInterfaceMap>) -> Self {
         DBusObject {
-            path: path.to_owned(),
+            path: path.to_string(),
             interfaces: interfaces,
         }
     }

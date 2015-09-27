@@ -22,7 +22,7 @@ impl DBusRunner {
         })
     }
 
-    pub fn add_listener(&mut self, name: &str) -> Result<&mut DBusServer, DBusError> {
+    pub fn add_listener<N: ToString>(&mut self, name: N) -> Result<&mut DBusServer, DBusError> {
         let listener = try!(DBusServer::new_listener(self.conn.clone(), name));
 
         self.listeners.push(listener);
@@ -30,21 +30,21 @@ impl DBusRunner {
         Ok(self.listeners.last_mut().unwrap())
     }
 
-    pub fn add_server(&mut self, name: &str) -> Result<&mut DBusServer, DBusError> {
-        match self.servers.entry(name.to_owned()) {
+    pub fn add_server<N: ToString>(&mut self, name: N) -> Result<&mut DBusServer, DBusError> {
+        match self.servers.entry(name.to_string()) {
             Entry::Vacant(v)    => {
                 let server = try!(DBusServer::new(self.conn.clone(), name));
 
                 Ok(v.insert(server))
             },
-            Entry::Occupied(_)  => Err(DBusError::ServerAlreadyRegistered(name.to_owned())),
+            Entry::Occupied(_)  => Err(DBusError::ServerAlreadyRegistered(name.to_string())),
         }
     }
 
     pub fn remove_server(&mut self, name: &str) -> Result<&mut Self, DBusError> {
         match self.servers.remove(name) {
             Some(_) => Ok(self),
-            None    => Err(DBusError::NoSuchServer(name.to_owned())),
+            None    => Err(DBusError::NoSuchServer(name.to_string())),
         }
     }
 

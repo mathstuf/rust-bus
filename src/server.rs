@@ -158,10 +158,10 @@ pub struct DBusServer {
 }
 
 impl DBusServer {
-    pub fn new_listener(conn: Rc<DBusConnection>, name: &str) -> Result<Self, DBusError> {
+    pub fn new_listener<N: ToString>(conn: Rc<DBusConnection>, name: N) -> Result<Self, DBusError> {
         Ok(DBusServer {
             conn: conn,
-            name: name.to_owned(),
+            name: name.to_string(),
             can_handle: false,
 
             objects: DBusObjectTree::new(),
@@ -170,15 +170,16 @@ impl DBusServer {
         })
     }
 
-    pub fn new(conn: Rc<DBusConnection>, name: &str) -> Result<Self, DBusError> {
-        try!(conn.request_name(name, DBusRequestNameFlags::DoNotQueue));
+    pub fn new<N: ToString>(conn: Rc<DBusConnection>, name: N) -> Result<Self, DBusError> {
+        let name_str = name.to_string();
+        try!(conn.request_name(&name_str, DBusRequestNameFlags::DoNotQueue));
 
         // TODO: add root object
         // TODO: add ObjectManager interface
 
         Ok(DBusServer {
             conn: conn,
-            name: name.to_owned(),
+            name: name_str,
             can_handle: true,
 
             objects: DBusObjectTree::new(),
@@ -191,16 +192,16 @@ impl DBusServer {
         &self.name
     }
 
-    pub fn add_object(&mut self, path: &str, iface_map: DBusInterfaceMapBuilder) -> Result<&mut Self, DBusError> {
+    pub fn add_object<P: ToString>(&mut self, path: P, iface_map: DBusInterfaceMapBuilder) -> Result<&mut Self, DBusError> {
         if !self.can_handle {
             return Err(DBusError::NoServerName);
         }
 
-        self.objects.insert(path.to_owned(), iface_map)
+        self.objects.insert(path.to_string(), iface_map)
             .map(|_| self)
     }
 
-    pub fn remove_object(&mut self, path: &str) -> Result<&mut Self, DBusError> {
+    pub fn remove_object<P: ToString>(&mut self, path: P) -> Result<&mut Self, DBusError> {
         if !self.can_handle {
             return Err(DBusError::NoServerName);
         }
@@ -208,7 +209,7 @@ impl DBusServer {
         unimplemented!()
 
         /*
-        self.objects.remove(path.to_owned())
+        self.objects.remove(path.to_string())
             .map(|obj| {
                 // TODO: emit InterfacesRemoved signal
                 // TODO: add in dummy object

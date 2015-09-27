@@ -20,10 +20,10 @@ pub struct DBusArgument {
 }
 
 impl DBusArgument {
-    pub fn new(name: &str, sig: &str) -> Self {
+    pub fn new<N: ToString, S: ToString>(name: N, sig: S) -> Self {
         DBusArgument {
-            name: name.to_owned(),
-            signature: sig.to_owned(),
+            name: name.to_string(),
+            signature: sig.to_string(),
         }
     }
 }
@@ -35,10 +35,10 @@ pub struct DBusAnnotation {
 type DBusAnnotations = Vec<DBusAnnotation>;
 
 impl DBusAnnotation {
-    pub fn new(name: &str, value: &str) -> Self {
+    pub fn new<N: ToString, V: ToString>(name: N, value: V) -> Self {
         DBusAnnotation {
-            name: name.to_owned(),
-            value: value.to_owned(),
+            name: name.to_string(),
+            value: value.to_string(),
         }
     }
 }
@@ -49,10 +49,10 @@ pub struct DBusErrorMessage {
 }
 
 impl DBusErrorMessage {
-    pub fn new(name: &str, message: &str) -> Self {
+    pub fn new<N: ToString, M: ToString>(name: N, message: M) -> Self {
         DBusErrorMessage {
-            name: name.to_owned(),
-            message: message.to_owned(),
+            name: name.to_string(),
+            message: message.to_string(),
         }
     }
 }
@@ -194,24 +194,24 @@ impl DBusInterface {
         }
     }
 
-    pub fn add_method(mut self, name: &str, method: DBusMethod) -> Self {
-        self.methods.insert(name.to_owned(), method);
+    pub fn add_method<N: ToString>(mut self, name: N, method: DBusMethod) -> Self {
+        self.methods.insert(name.to_string(), method);
 
         self
     }
 
-    pub fn add_property(mut self, name: &str, property: DBusProperty) -> Self {
-        self.properties.insert(name.to_owned(), property);
+    pub fn add_property<N: ToString>(mut self, name: N, property: DBusProperty) -> Self {
+        self.properties.insert(name.to_string(), property);
 
         self
     }
 
-    pub fn get_property(&self, name: &str) -> Option<&DBusProperty> {
-        self.properties.get(name)
+    pub fn get_property<N: ToString>(&self, name: N) -> Option<&DBusProperty> {
+        self.properties.get(&name.to_string())
     }
 
-    pub fn add_signal(mut self, name: &str, signal: DBusSignal) -> Self {
-        self.signals.insert(name.to_owned(), signal);
+    pub fn add_signal<N: ToString>(mut self, name: N, signal: DBusSignal) -> Self {
+        self.signals.insert(name.to_string(), signal);
 
         self
     }
@@ -468,14 +468,14 @@ impl DBusInterfaceMapBuilder {
         }
     }
 
-    pub fn add_interface(mut self, name: &str, iface: DBusInterface) -> Result<Self, DBusError> {
-        match self.map.entry(name.to_owned()) {
+    pub fn add_interface<N: ToString>(mut self, name: N, iface: DBusInterface) -> Result<Self, DBusError> {
+        match self.map.entry(name.to_string()) {
             Entry::Vacant(v)    => {
                 v.insert(iface);
 
                 Ok(())
             },
-            Entry::Occupied(_)  => Err(DBusError::InterfaceAlreadyRegistered(name.to_owned())),
+            Entry::Occupied(_)  => Err(DBusError::InterfaceAlreadyRegistered(name.to_string())),
         }.map(|_| self)
     }
 }
