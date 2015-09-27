@@ -74,7 +74,9 @@ impl DBusServer {
             Entry::Vacant(v)    => {
                 // TODO: store this
                 let children = Rc::new(RefCell::new(vec![]));
-                let obj = try!(DBusObject::new(path, iface_map, children));
+                let rc_iface_map = Rc::new(try!(iface_map.finalize(children)));
+
+                let obj = DBusObject::new(path, rc_iface_map.clone());
 
                 // TODO: emit InterfacesAdded signal
 

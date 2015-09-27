@@ -1,20 +1,21 @@
 use super::connection::DBusConnection;
-use super::error::DBusError;
-use super::interface::{DBusChildrenList, DBusInterfaceMap};
+use super::interface::DBusInterfaceMap;
 use super::message::DBusMessage;
+
+use std::rc::Rc;
 
 pub struct DBusObject {
     path: String,
 
-    interfaces: DBusInterfaceMap,
+    interfaces: Rc<DBusInterfaceMap>,
 }
 
 impl DBusObject {
-    pub fn new(path: &str, interfaces: DBusInterfaceMap, children: DBusChildrenList) -> Result<DBusObject, DBusError> {
-        Ok(DBusObject {
+    pub fn new(path: &str, interfaces: Rc<DBusInterfaceMap>) -> DBusObject {
+        DBusObject {
             path: path.to_owned(),
-            interfaces: try!(interfaces.finalize(children)),
-        })
+            interfaces: interfaces,
+        }
     }
 
     pub fn path(&self) -> &str {
