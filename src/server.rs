@@ -197,8 +197,9 @@ impl DBusServer {
             return Err(DBusError::NoServerName);
         }
 
-        self.objects.insert(path.to_string(), iface_map)
-            .map(|_| self)
+        try!(self.objects.borrow_mut().insert(path.to_string(), iface_map, false));
+
+        Ok(self)
     }
 
     pub fn remove_object<P: ToString>(&mut self, path: P) -> Result<&mut Self, DBusError> {
