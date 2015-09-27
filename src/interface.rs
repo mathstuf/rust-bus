@@ -677,14 +677,14 @@ impl Interfaces {
     /// If the method returns values which do not match its signature, a panic will occur since
     /// this is a bug in the implementation.
     pub fn handle(&self, conn: &Connection, msg: &mut Message) -> Option<Result<(), ()>> {
-        CallHeaders::new(msg).and_then(|hdrs| {
+        CallHeaders::new(msg).map(|hdrs| {
             let iface_name = hdrs.interface;
             let method_name = hdrs.method;
             let map_ref = &self.map.borrow();
-            let method = map_ref.get(&iface_name)
-                                .and_then(|iface| iface.methods.get(&method_name));
+            let opt_iface = map_ref.get(&iface_name);
+            let opt_method = opt_iface.and_then(|iface| iface.methods.get(&method_name));
 
-            method.map(|method| {
+            let res = if let Some(method) = opt_method {
                 let res = if Self::_check_signature(&method.in_args, msg) {
                     let mut cb = method.cb.borrow_mut();
 
@@ -722,10 +722,20 @@ impl Interfaces {
                     },
                 };
 
-                conn.send(res)
-                    .map(|_| ())
-                    .map_err(|_| ())
-            })
+                res
+            } else {
+                if opt_iface.is_none() {
+                    msg.error_message("org.freedesktop.DBus.Error.UnknownMethod")
+                       .add_argument(&format!("unknown interface: {}", iface_name))
+                } else {
+                    msg.error_message("org.freedesktop.DBus.Error.UnknownMethod")
+                       .add_argument(&format!("unknown method: {}", method_name))
+                }
+            };
+
+            conn.send(res)
+                .map(|_| ())
+                .map_err(|_| ())
         })
     }
 }
