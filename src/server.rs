@@ -44,8 +44,8 @@ impl Server {
             can_handle: false,
 
             objects: BTreeMap::new(),
-            signals: BTreeMap::new(),
-            namespace_signals: BTreeMap::new(),
+            signals: SignalHandlerMap::new(),
+            namespace_signals: SignalHandlerMap::new(),
         })
     }
 
@@ -63,8 +63,8 @@ impl Server {
             can_handle: true,
 
             objects: BTreeMap::new(),
-            signals: BTreeMap::new(),
-            namespace_signals: BTreeMap::new(),
+            signals: SignalHandlerMap::new(),
+            namespace_signals: SignalHandlerMap::new(),
         })
     }
 
