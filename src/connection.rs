@@ -104,6 +104,10 @@ impl DBusConnection {
         Ok(())
     }
 
+    pub fn send(&self, msg: DBusMessage) -> Result<u32, DBusError> {
+        Ok(try!(self.conn.send(msg.extract())))
+    }
+
     pub fn iter(&self) -> DBusMessages {
         DBusMessages {
             conn: &self.conn,
