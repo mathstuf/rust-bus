@@ -264,22 +264,6 @@ impl DBusInterface {
     }
 }
 
-type InterfaceMap = Rc<RefCell<DBusMap<DBusInterface>>>;
-pub type DBusChildrenList = Rc<RefCell<Vec<String>>>;
-
-fn require_interface<'a>(map: &'a Ref<'a, DBusMap<DBusInterface>>, name: &str) -> Result<&'a DBusInterface, DBusErrorMessage> {
-    map.get(name).ok_or(
-        DBusErrorMessage {
-            name: "org.freedesktop.DBus.Error.UnknownInterface".to_owned(),
-            message: format!("unknown interface: {}", name),
-        })
-}
-
-pub struct DBusInterfaceMap {
-    map: InterfaceMap,
-    finalized: bool,
-}
-
 struct DBusPeerInterface;
 
 impl DBusPeerInterface {
@@ -354,6 +338,7 @@ impl DBusPropertyInterface {
 }
 
 struct DBusIntrospectableInterface;
+pub type DBusChildrenList = Rc<RefCell<Vec<String>>>;
 
 impl DBusIntrospectableInterface {
     fn introspect(map: &InterfaceMap, children: &DBusChildrenList, _: &mut DBusMessage) -> DBusMethodResult {
@@ -457,6 +442,21 @@ impl DBusIntrospectableInterface {
             .add_method("Introspect", DBusMethod::new(move |m| Self::introspect(&introspect_map, &children, m))
                 .add_result(DBusArgument::new("xml_data", "s")))
     }
+}
+
+fn require_interface<'a>(map: &'a Ref<'a, DBusMap<DBusInterface>>, name: &str) -> Result<&'a DBusInterface, DBusErrorMessage> {
+    map.get(name).ok_or(
+        DBusErrorMessage {
+            name: "org.freedesktop.DBus.Error.UnknownInterface".to_owned(),
+            message: format!("unknown interface: {}", name),
+        })
+}
+
+type InterfaceMap = Rc<RefCell<DBusMap<DBusInterface>>>;
+
+pub struct DBusInterfaceMap {
+    map: InterfaceMap,
+    finalized: bool,
 }
 
 impl DBusInterfaceMap {
