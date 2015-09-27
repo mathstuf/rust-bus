@@ -1,6 +1,6 @@
 use super::connection::{DBusConnection, DBusReleaseNameReply, DBusRequestNameFlags};
 use super::error::DBusError;
-use super::interface::{DBusMap, DBusChildrenList, DBusInterfaceMap, DBusInterfaceMapBuilder};
+use super::interface::{DBusMap, DBusChildrenList, DBusInterface, DBusInterfaceMap, DBusInterfaceMapBuilder};
 use super::message::DBusMessage;
 use super::object::DBusObject;
 use super::target::DBusTarget;
@@ -39,8 +39,9 @@ impl<'a> DBusObjectTreeCursor<'a> {
         self.tree.object.is_some()
     }
 
-    pub fn set_object(&mut self, object: DBusObject) {
+    pub fn set_object(&mut self, object: DBusObject, manager: bool) {
         self.tree.object = Some(object);
+        self.tree.manager = manager;
     }
 
     pub fn find_or_create(self, name: &str) -> Self {
@@ -56,8 +57,17 @@ impl<'a> DBusObjectTreeCursor<'a> {
     }
 }
 
+struct DBusObjectManagerInterface;
+
+impl DBusObjectManagerInterface {
+    pub fn new() -> DBusInterface {
+        unimplemented!()
+    }
+}
+
 struct DBusObjectTree {
     object: Option<DBusObject>,
+    manager: bool,
     children_names: DBusChildrenList,
     children: DBusMap<DBusObjectTree>,
 }
@@ -66,6 +76,7 @@ impl DBusObjectTree {
     pub fn new() -> Self {
         DBusObjectTree {
             object: None,
+            manager: false,
             children_names: Rc::new(RefCell::new(vec![])),
             children: DBusMap::new(),
         }
@@ -93,7 +104,7 @@ impl DBusObjectTree {
         })
     }
 
-    pub fn insert(&mut self, path: String, iface_map: DBusInterfaceMapBuilder) -> Result<(), DBusError> {
+    pub fn insert(&mut self, path: String, iface_map: DBusInterfaceMapBuilder, manager: bool) -> Result<(), DBusError> {
         if !path.starts_with("/") {
             return Err(DBusError::InvalidPath(path));
         }
@@ -114,8 +125,14 @@ impl DBusObjectTree {
             return Err(DBusError::PathAlreadyRegistered(path));
         }
 
-        let iface_map = Rc::new(try!(DBusInterfaceMap::new(iface_map, ins_cursor.tree().children_names.clone())));
-        Ok(ins_cursor.set_object(DBusObject::new(&path, iface_map)))
+        let final_iface = if manager {
+            try!(iface_map.add_interface("org.freedesktop.DBus.ObjectManager", DBusObjectManagerInterface::new()))
+        } else {
+            iface_map
+        };
+
+        let iface_map = Rc::new(try!(DBusInterfaceMap::new(final_iface, ins_cursor.tree().children_names.clone())));
+        Ok(ins_cursor.set_object(DBusObject::new(&path, iface_map), manager))
 
         // TODO: emit InterfacesAdded signal
     }
@@ -198,6 +215,16 @@ impl DBusServer {
         }
 
         try!(self.objects.borrow_mut().insert(path.to_string(), iface_map, false));
+
+        Ok(self)
+    }
+
+    pub fn add_object_manager<P: ToString>(&mut self, path: P, iface_map: DBusInterfaceMapBuilder) -> Result<&mut Self, DBusError> {
+        if !self.can_handle {
+            return Err(DBusError::NoServerName);
+        }
+
+        try!(self.objects.borrow_mut().insert(path.to_string(), iface_map, true));
 
         Ok(self)
     }
