@@ -26,7 +26,7 @@ pub struct DBusServer {
     can_handle: bool,
 
     // TODO: store children information
-    objects: BTreeMap<String, DBusObject>,
+    objects: DBusMap<DBusObject>,
     signals: DBusSignalHandlerMap,
     namespace_signals: DBusSignalHandlerMap,
 }

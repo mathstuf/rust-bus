@@ -12,7 +12,7 @@ use std::collections::btree_map::{BTreeMap, Entry};
 use std::collections::HashMap;
 use std::rc::Rc;
 
-type DBusMap<T> = BTreeMap<String, T>;
+pub type DBusMap<T> = BTreeMap<String, T>;
 
 pub struct DBusArgument {
     name: String,
