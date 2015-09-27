@@ -1,13 +1,15 @@
 extern crate machine_id;
 use self::machine_id::MachineId;
 
+use super::arguments::DBusArguments;
 use super::connection::DBusConnection;
 use super::error::DBusError;
 use super::message::DBusMessage;
-use super::value::{DBusBasicValue, DBusSignature, DBusValue};
+use super::value::{DBusBasicValue, DBusDictionary, DBusSignature, DBusValue};
 
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell};
 use std::collections::btree_map::{BTreeMap, Entry};
+use std::collections::HashMap;
 use std::rc::Rc;
 
 type DBusMap<T> = BTreeMap<String, T>;
@@ -213,6 +215,53 @@ impl DBusInterface {
 
         self
     }
+
+    fn _require_property(&self, name: &str) -> Result<&DBusProperty, DBusErrorMessage> {
+        self.properties.get(name).ok_or(
+            DBusErrorMessage::new("org.freedesktop.DBus.Error.UnknownProperty",
+                                  &format!("unknown property: {}", name)))
+    }
+
+    pub fn get_property_value(&self, name: &str) -> DBusMethodResult {
+        self._require_property(name).and_then(|prop| {
+            match prop.access {
+                // TODO: Verify that the signature matches the return.
+                PropertyAccess::RO(ref ro) => ro.get().map(|v| vec![v]),
+                PropertyAccess::RW(ref rw) => rw.get().map(|v| vec![v]),
+                PropertyAccess::WO(_) =>
+                    Err(DBusErrorMessage {
+                        name: "org.freedesktop.DBus.Error.Failed".to_owned(),
+                        message: format!("property is write-only: {}", name),
+                    }),
+            }
+        })
+    }
+
+    pub fn set_property_value(&self, name: &str, value: &DBusValue) -> DBusMethodResult {
+        self._require_property(name).and_then(|prop| {
+            match prop.access {
+                PropertyAccess::WO(ref wo) => wo.set(value).map(|_| vec![]),
+                PropertyAccess::RW(ref rw) => rw.set(value).map(|_| vec![]),
+                PropertyAccess::RO(_) =>
+                    Err(DBusErrorMessage::new("org.freedesktop.DBus.Error.Failed",
+                                              &format!("property is read-only: {}", name))),
+            }
+        })
+    }
+
+    pub fn get_property_map(&self) -> DBusDictionary {
+        DBusDictionary::new(self.properties.iter().map(|(k, v)| {
+            match v.access {
+                // TODO: Message that failures occurred?
+                // TODO: Verify that the signature matches the return.
+                PropertyAccess::RO(ref ro) => ro.get().ok(),
+                PropertyAccess::RW(ref rw) => rw.get().ok(),
+                PropertyAccess::WO(_)      => None,
+            }.map(|v| {
+                (DBusBasicValue::String(k.clone()), v)
+            })
+        }).filter_map(|a| a).collect::<HashMap<DBusBasicValue, DBusValue>>())
+    }
 }
 
 type InterfaceMap = Rc<RefCell<DBusMap<DBusInterface>>>;
@@ -260,11 +309,67 @@ impl DBusInterfaceMap {
         Ok(vec![DBusValue::BasicValue(DBusBasicValue::String(mid))])
     }
 
+    fn _require_interface<'a>(map: &'a Ref<'a, DBusMap<DBusInterface>>, name: &str) -> Result<&'a DBusInterface, DBusErrorMessage> {
+        map.get(name).ok_or(
+            DBusErrorMessage {
+                name: "org.freedesktop.DBus.Error.UnknownInterface".to_owned(),
+                message: format!("unknown interface: {}", name),
+            })
+    }
+
+    fn get_property(map: &InterfaceMap, m: &mut DBusMessage) -> DBusMethodResult {
+        let values = try!(DBusArguments::new(m));
+        let iface = try!(values.extract_string(0));
+        let property = try!(values.extract_string(1));
+
+        Self::_require_interface(&map.borrow(), iface).and_then(|iface| {
+            iface.get_property_value(property)
+        })
+    }
+
+    fn set_property(map: &mut InterfaceMap, m: &mut DBusMessage) -> DBusMethodResult {
+        let values = try!(DBusArguments::new(m));
+        let iface = try!(values.extract_string(0));
+        let property = try!(values.extract_string(1));
+        let value = try!(values.extract(2));
+
+        Self::_require_interface(&map.borrow(), iface).and_then(|iface| {
+            iface.set_property_value(property, value)
+        })
+    }
+
+    fn get_all_properties(map: &InterfaceMap, m: &mut DBusMessage) -> DBusMethodResult {
+        let values = try!(DBusArguments::new(m));
+        let iface = try!(values.extract_string(0));
+
+        Self::_require_interface(&map.borrow(), iface).map(|iface| {
+            vec![DBusValue::Dictionary(iface.get_property_map())]
+        })
+    }
+
     pub fn finalize(mut self) -> Result<DBusInterfaceMap, DBusError> {
         self = try!(self.add_interface("org.freedesktop.DBus.Peer", DBusInterface::new()
             .add_method("Ping", DBusMethod::new(|_| Self::ping()))
             .add_method("GetMachineId", DBusMethod::new(|_| Self::get_machine_id())
                 .add_result(DBusArgument::new("machine_uuid", "s")))
+        ));
+
+        let get_map = self.map.clone();
+        let mut set_map = self.map.clone();
+        let get_all_map = self.map.clone();
+
+        self = try!(self.add_interface("org.freedesktop.DBus.Properties", DBusInterface::new()
+            .add_method("Get", DBusMethod::new(move |m| Self::get_property(&get_map, m))
+                .add_argument(DBusArgument::new("interface_name", "s"))
+                .add_argument(DBusArgument::new("property_name", "s"))
+                .add_result(DBusArgument::new("value", "v")))
+            .add_method("Set", DBusMethod::new(move |m| Self::set_property(&mut set_map, m))
+                .add_argument(DBusArgument::new("interface_name", "s"))
+                .add_argument(DBusArgument::new("property_name", "s"))
+                .add_result(DBusArgument::new("value", "v")))
+            .add_method("GetAll", DBusMethod::new(move |m| Self::get_all_properties(&get_all_map, m))
+                .add_argument(DBusArgument::new("interface_name", "s"))
+                .add_result(DBusArgument::new("props", "{sv}")))
         ));
 
         // TODO: Add core interfaces.
