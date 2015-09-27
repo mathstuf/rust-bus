@@ -512,28 +512,36 @@ impl DBusInterfaceMap {
     }
 
     pub fn handle(&self, conn: &DBusConnection, msg: &mut DBusMessage) -> Option<Result<(), ()>> {
-        msg.call_headers().and_then(|hdrs| {
+        msg.call_headers().map(|hdrs| {
             let iface_name = hdrs.interface;
             let method_name = hdrs.method;
-            self.map.borrow_mut().get_mut(&iface_name).and_then(|iface| iface.methods.get_mut(&method_name)).map(|method| {
-                // TODO: Verify input argument signature.
+            let reply = if let Some(iface) = self.map.borrow_mut().get_mut(&iface_name) {
+                if let Some(method) = iface.methods.get_mut(&method_name) {
+                    // TODO: Verify input argument signature.
 
-                let msg = match (method.cb)(msg) {
-                    Ok(vals) => {
-                        vals.iter().fold(msg.return_message(), |msg, val| {
-                            msg.add_argument(val)
-                        })
-                    },
-                    Err(err) => msg.error_message(&err.name)
-                                   .add_argument(&err.message),
-                };
+                    match (method.cb)(msg) {
+                        Ok(vals) => {
+                            // TODO: Verify that the signature matches the return.
 
-                // TODO: Verify that the signature matches the return.
+                            vals.iter().fold(msg.return_message(), |msg, val| {
+                                msg.add_argument(val)
+                            })
+                        },
+                        Err(err) => msg.error_message(&err.name)
+                                       .add_argument(&err.message),
+                    }
+                } else {
+                    msg.error_message("org.freedesktop.DBus.Error.UnknownMethod")
+                       .add_argument(&format!("unknown method: {}", method_name))
+                }
+            } else {
+                msg.error_message("org.freedesktop.DBus.Error.UnknownMethod")
+                   .add_argument(&format!("unknown interface: {}", iface_name))
+            };
 
-                conn.send(msg)
-                    .map(|_| ())
-                    .map_err(|_| ())
-            })
+            conn.send(reply)
+                .map(|_| ())
+                .map_err(|_| ())
         })
     }
 }
