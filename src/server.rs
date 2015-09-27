@@ -3,7 +3,7 @@ use self::core::ops::DerefMut;
 
 use super::connection::{Connection, ReleaseNameReply, DO_NOT_QUEUE};
 use super::error::Error;
-use super::interface::{Map, ChildrenList, InterfacesBuilder};
+use super::interface::{Map, ChildrenList, Interface, InterfacesBuilder};
 use super::message::{Message, MessageType};
 use super::object::Object;
 use super::target::Target;
@@ -42,8 +42,9 @@ impl<'a> ObjectTreeCursor<'a> {
         self.tree.object.is_some()
     }
 
-    pub fn set_object(&mut self, object: Object) {
+    pub fn set_object(&mut self, object: Object, manager: bool) {
         self.tree.object = Some(object);
+        self.tree.manager = manager;
     }
 
     pub fn find_or_create(self, name: &str) -> Self {
@@ -59,8 +60,17 @@ impl<'a> ObjectTreeCursor<'a> {
     }
 }
 
+struct ObjectManagerInterface;
+
+impl ObjectManagerInterface {
+    pub fn new() -> Interface {
+        unimplemented!()
+    }
+}
+
 struct ObjectTree {
     object: Option<Object>,
+    manager: bool,
     children_names: ChildrenList,
     children: Map<ObjectTree>,
 }
@@ -69,6 +79,7 @@ impl ObjectTree {
     pub fn new() -> Self {
         ObjectTree {
             object: None,
+            manager: false,
             children_names: Rc::new(RefCell::new(vec![])),
             children: Map::new(),
         }
@@ -108,7 +119,7 @@ impl ObjectTree {
         }
     }
 
-    pub fn insert(&mut self, path: String, ifaces: InterfacesBuilder) -> Result<(), Error> {
+    pub fn insert(&mut self, path: String, ifaces: InterfacesBuilder, manager: bool) -> Result<(), Error> {
         if !path.starts_with("/") {
             return Err(Error::InvalidPath(path));
         }
@@ -129,7 +140,13 @@ impl ObjectTree {
             return Err(Error::PathAlreadyRegistered(path));
         }
 
-        let ifaces = try!(ifaces.finalize(&ins_cursor.tree().children_names.clone()));
+        let final_ifaces = if manager {
+            try!(ifaces.add_interface("org.freedesktop.DBus.ObjectManager", ObjectManagerInterface::new()))
+        } else {
+            ifaces
+        };
+
+        let ifaces = try!(final_ifaces.finalize(&ins_cursor.tree().children_names.clone()));
         let object = try!(Object::new(&path, ifaces));
         Ok(ins_cursor.set_object(object))
 
@@ -217,6 +234,16 @@ impl Server {
         self.objects.insert(path.to_owned(), ifaces)
             .map(|_| self)
 
+    }
+
+    pub fn add_object_manager(&mut self, path: &str, ifaces: InterfacesBuilder) -> Result<&mut Self, Error> {
+        if !self.can_handle {
+            return Err(Error::NoServerName);
+        }
+
+        try!(self.objects.borrow_mut().insert(path.to_string(), ifaces, true));
+
+        Ok(self)
     }
 
     /// Remove an object from the server.
