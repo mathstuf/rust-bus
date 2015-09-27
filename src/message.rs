@@ -11,6 +11,10 @@ pub struct DBusMessage {
     message: message::Message,
 }
 
+pub struct DBusCallHeaders {
+    pub interface: String,
+    pub method: String,
+}
 pub struct DBusSignalHeaders {
     pub interface: String,
     pub object: String,
@@ -89,6 +93,17 @@ impl DBusMessage {
 
     pub fn member(&self) -> Option<String> {
         Self::_get_header_string(&self.message, message::HEADER_FIELD_MEMBER)
+    }
+
+    pub fn call_headers(&self) -> Option<DBusCallHeaders> {
+        self.interface().and_then(|interface| {
+            self.member().map(|method| {
+                DBusCallHeaders {
+                    interface: interface,
+                    method: method,
+                }
+            })
+        })
     }
 
     pub fn signal_headers(&self) -> Option<DBusSignalHeaders> {

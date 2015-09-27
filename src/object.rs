@@ -22,6 +22,6 @@ impl DBusObject {
     }
 
     pub fn handle_message(&mut self, conn: &DBusConnection, msg: &mut DBusMessage) -> Option<Result<(), ()>> {
-        unimplemented!()
+        self.interfaces.handle(conn, msg)
     }
 }
