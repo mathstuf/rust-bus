@@ -1,3 +1,5 @@
+extern crate log;
+
 extern crate machine_id;
 use self::machine_id::MachineId;
 
@@ -541,7 +543,9 @@ impl DBusInterfaceMap {
 
             conn.send(reply)
                 .map(|_| ())
-                .map_err(|_| ())
+                .map_err(|err| {
+                    warn!("failed to send error reply: {}", err)
+                })
         })
     }
 }

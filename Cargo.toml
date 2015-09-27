@@ -9,6 +9,7 @@ Convenience wrappers for exposing a D-Bus interface.
 
 [dependencies]
 dbus-serialize = "~0.1.1"
+log = "~0.3.2"
 
 [dependencies.dbus-bytestream]
 git = "https://github.com/mathstuf/dbus-bytestream.git"

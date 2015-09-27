@@ -1,3 +1,5 @@
+extern crate log;
+
 use super::connection::{DBusConnection, DBusReleaseNameReply, DBusRequestNameFlags};
 use super::error::DBusError;
 use super::interface::{DBusMap, DBusChildrenList, DBusInterface, DBusInterfaceMap, DBusInterfaceMapBuilder};
@@ -297,8 +299,11 @@ impl DBusServer {
                     }
                 })
             } else {
-                let _ = conn.send(m.error_message("org.freedesktop.DBus.Error.UnknownObject")
-                                   .add_argument(&format!("unknown object: {}", path)));
+                let errmsg = m.error_message("org.freedesktop.DBus.Error.UnknownObject")
+                              .add_argument(&format!("unknown object: {}", path));
+                if let Err(err) = conn.send(errmsg) {
+                    warn!("failed to send error reply: {}", err)
+                }
                 None
             }
         })
