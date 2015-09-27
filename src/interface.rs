@@ -339,7 +339,7 @@ struct DBusIntrospectableInterface;
 pub type DBusChildrenList = Rc<RefCell<Vec<String>>>;
 
 impl DBusIntrospectableInterface {
-    fn introspect(map: &InterfaceMap, children: &DBusChildrenList, _: &mut DBusMessage) -> DBusMethodResult {
+    fn introspect(map: &InterfaceMap, children: &DBusChildrenList) -> DBusMethodResult {
         let xml = format!(concat!(
             r#"<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"\n"#,
             r#" "http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">\n"#,
@@ -437,7 +437,7 @@ impl DBusIntrospectableInterface {
         let children = children.clone();
 
         DBusInterface::new()
-            .add_method("Introspect", DBusMethod::new(move |m| Self::introspect(&introspect_map, &children, m))
+            .add_method("Introspect", DBusMethod::new(move |_| Self::introspect(&introspect_map, &children))
                 .add_result(DBusArgument::new("xml_data", "s")))
     }
 }
