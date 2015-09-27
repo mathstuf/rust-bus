@@ -25,6 +25,7 @@ pub struct DBusServer {
     name: String,
     can_handle: bool,
 
+    // TODO: store children information
     objects: BTreeMap<String, DBusObject>,
     signals: DBusSignalHandlerMap,
     namespace_signals: DBusSignalHandlerMap,
@@ -45,6 +46,9 @@ impl DBusServer {
 
     pub fn new(conn: Rc<DBusConnection>, name: &str) -> Result<DBusServer, DBusError> {
         try!(conn.request_name(name, DBusRequestNameFlags::DoNotQueue));
+
+        // TODO: add root object
+        // TODO: add ObjectManager interface
 
         Ok(DBusServer {
             conn: conn,
@@ -72,6 +76,8 @@ impl DBusServer {
                 let children = Rc::new(RefCell::new(vec![]));
                 let obj = try!(DBusObject::new(path, iface_map, children));
 
+                // TODO: emit InterfacesAdded signal
+
                 v.insert(obj);
 
                 Ok(())
@@ -86,7 +92,11 @@ impl DBusServer {
         }
 
         match self.objects.remove(path) {
-            Some(_) => Ok(self),
+            Some(_) => {
+                //TODO: emit InterfacesRemoved signal
+
+                Ok(self)
+            },
             None    => Err(DBusError::NoSuchPath(path.to_owned())),
         }
     }

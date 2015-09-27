@@ -52,6 +52,8 @@ impl DBusRunner {
         let listeners = &mut self.listeners;
         let servers = &mut self.servers;
 
+        // TODO: add dummy objects to servers
+
         self.conn.iter().fold((), |_, mut message| {
             if message.is_signal() {
                 for listener in listeners.iter_mut() {
