@@ -38,9 +38,9 @@ impl DBusServer {
             name: name.to_owned(),
             can_handle: false,
 
-            objects: BTreeMap::new(),
-            signals: BTreeMap::new(),
-            namespace_signals: BTreeMap::new(),
+            objects: DBusMap::new(),
+            signals: DBusSignalHandlerMap::new(),
+            namespace_signals: DBusSignalHandlerMap::new(),
         })
     }
 
@@ -55,9 +55,9 @@ impl DBusServer {
             name: name.to_owned(),
             can_handle: true,
 
-            objects: BTreeMap::new(),
-            signals: BTreeMap::new(),
-            namespace_signals: BTreeMap::new(),
+            objects: DBusMap::new(),
+            signals: DBusSignalHandlerMap::new(),
+            namespace_signals: DBusSignalHandlerMap::new(),
         })
     }
 
