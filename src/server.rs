@@ -1,14 +1,13 @@
-extern crate dbus;
-use self::dbus::{NameFlag, ReleaseNameReply};
-
-use super::connection::DBusConnection;
+use super::connection::{DBusConnection, DBusReleaseNameReply, DBusRequestNameFlags};
 use super::error::DBusError;
 use super::interface::DBusInterfaceMap;
-use super::message::{DBusMessage, DBusMessageType};
+use super::message::DBusMessage;
 use super::object::DBusObject;
 use super::target::DBusTarget;
 
+use std::cell::RefCell;
 use std::collections::btree_map::{BTreeMap, Entry};
+use std::rc::Rc;
 
 pub type DBusSignalHandler = Box<FnMut(&DBusConnection, &DBusTarget) -> ()>;
 type DBusSignalHandlers = Vec<DBusSignalHandler>;
@@ -21,18 +20,19 @@ fn _add_handler(handlers: &mut DBusSignalHandlerMap, signal: DBusTarget, handler
     };
 }
 
-pub struct DBusServer<'a> {
-    conn: &'a DBusConnection,
+pub struct DBusServer {
+    conn: Rc<DBusConnection>,
     name: String,
     can_handle: bool,
 
-    objects: BTreeMap<String, DBusObject<'a>>,
+    // TODO: store children information
+    objects: BTreeMap<String, DBusObject>,
     signals: DBusSignalHandlerMap,
     namespace_signals: DBusSignalHandlerMap,
 }
 
-impl<'a> DBusServer<'a> {
-    pub fn new_listener(conn: &'a DBusConnection, name: &str) -> Result<DBusServer<'a>, DBusError> {
+impl DBusServer {
+    pub fn new_listener(conn: Rc<DBusConnection>, name: &str) -> Result<DBusServer, DBusError> {
         Ok(DBusServer {
             conn: conn,
             name: name.to_owned(),
@@ -44,8 +44,11 @@ impl<'a> DBusServer<'a> {
         })
     }
 
-    pub fn new(conn: &'a DBusConnection, name: &str) -> Result<DBusServer<'a>, DBusError> {
-        try!(conn._connection().register_name(name, NameFlag::DoNotQueue as u32));
+    pub fn new(conn: Rc<DBusConnection>, name: &str) -> Result<DBusServer, DBusError> {
+        try!(conn.request_name(name, DBusRequestNameFlags::DoNotQueue));
+
+        // TODO: add root object
+        // TODO: add ObjectManager interface
 
         Ok(DBusServer {
             conn: conn,
@@ -62,14 +65,18 @@ impl<'a> DBusServer<'a> {
         &self.name
     }
 
-    pub fn add_object(&mut self, path: &str, iface_map: DBusInterfaceMap<'a>) -> Result<&mut Self, DBusError> {
+    pub fn add_object(&mut self, path: &str, iface_map: DBusInterfaceMap) -> Result<&mut Self, DBusError> {
         if !self.can_handle {
             return Err(DBusError::NoServerName);
         }
 
         match self.objects.entry(path.to_owned()) {
             Entry::Vacant(v)    => {
-                let obj = try!(DBusObject::new(self.conn, path, iface_map));
+                // TODO: store this
+                let children = Rc::new(RefCell::new(vec![]));
+                let obj = try!(DBusObject::new(path, iface_map, children));
+
+                // TODO: emit InterfacesAdded signal
 
                 v.insert(obj);
 
@@ -85,7 +92,11 @@ impl<'a> DBusServer<'a> {
         }
 
         match self.objects.remove(path) {
-            Some(_) => Ok(self),
+            Some(_) => {
+                //TODO: emit InterfacesRemoved signal
+
+                Ok(self)
+            },
             None    => Err(DBusError::NoSuchPath(path.to_owned())),
         }
     }
@@ -95,7 +106,7 @@ impl<'a> DBusServer<'a> {
                                  signal.interface,
                                  signal.object,
                                  signal.method);
-        try!(self.conn._connection().add_match(&dbus_match));
+        try!(self.conn.add_match(&dbus_match));
 
         _add_handler(&mut self.signals, signal, callback);
 
@@ -107,7 +118,7 @@ impl<'a> DBusServer<'a> {
                                  signal.interface,
                                  signal.object,
                                  signal.method);
-        try!(self.conn._connection().add_match(&dbus_match));
+        try!(self.conn.add_match(&dbus_match));
 
         _add_handler(&mut self.namespace_signals, signal, callback);
 
@@ -115,17 +126,20 @@ impl<'a> DBusServer<'a> {
     }
 
     pub fn handle_message<'b>(&mut self, m: &'b mut DBusMessage) -> Option<&'b mut DBusMessage> {
-        match m.msg_type() {
-            DBusMessageType::Signal     => Some(self._match_signal(m)),
-            DBusMessageType::MethodCall => self._call_method(m),
-            _                           => Some(m),
+        if m.is_signal() {
+            Some(self._match_signal(m))
+        } else if m.is_method_call() {
+            self._call_method(m)
+        } else {
+            Some(m)
         }
     }
 
     fn _call_method<'b>(&mut self, m: &'b mut DBusMessage) -> Option<&'b mut DBusMessage> {
+        let conn = self.conn.clone();
         self.objects.iter_mut().fold(Some(m), |opt_m, (_, object)| {
             opt_m.and_then(|mut m| {
-                match object.handle_message(&mut m) {
+                match object.handle_message(&conn, &mut m) {
                     None          => Some(m),
                     Some(Ok(()))  => None,
                     Some(Err(())) => {
@@ -138,12 +152,12 @@ impl<'a> DBusServer<'a> {
     }
 
     fn _match_signal<'b>(&mut self, m: &'b mut DBusMessage) -> &'b mut DBusMessage {
-        let conn = (&self.conn).clone();
+        let conn = self.conn.clone();
 
         DBusTarget::extract(m).map(|signal| {
             for handlers in self.signals.get_mut(&signal) {
                 for handler in handlers.iter_mut() {
-                    handler(conn, &signal);
+                    handler(&conn, &signal);
                 }
             }
 
@@ -153,7 +167,7 @@ impl<'a> DBusServer<'a> {
 
             for (_, handlers) in matched_handlers {
                 for handler in handlers.iter_mut() {
-                    handler(conn, &signal);
+                    handler(&conn, &signal);
                 };
             };
         });
@@ -162,21 +176,21 @@ impl<'a> DBusServer<'a> {
     }
 }
 
-impl<'a> Drop for DBusServer<'a> {
+impl Drop for DBusServer {
     fn drop(&mut self) {
         if !self.can_handle {
             return;
         }
 
-        let res = self.conn._connection().release_name(&self.name);
+        let res = self.conn.release_name(&self.name);
         match res {
             Ok(reply) =>
                 match reply {
-                    ReleaseNameReply::Released    => (),
-                    ReleaseNameReply::NonExistent => panic!("internal error: non-existent name {}?!", self.name),
-                    ReleaseNameReply::NotOwner    => panic!("internal error: not the owner of {}?!", self.name),
+                    DBusReleaseNameReply::Released    => (),
+                    DBusReleaseNameReply::NonExistent => panic!("internal error: non-existent name {}?!", self.name),
+                    DBusReleaseNameReply::NotOwner    => panic!("internal error: not the owner of {}?!", self.name),
                 },
-            Err(err) => println!("failed to release {}: {:?}: {:?}", self.name, err.name(), err.message()),
+            Err(err) => println!("failed to release {}: {:?}", self.name, err),
         }
     }
 }

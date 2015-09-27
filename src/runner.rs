@@ -1,42 +1,39 @@
-extern crate dbus;
-use self::dbus::ConnectionItem;
-
 use super::connection::DBusConnection;
 use super::error::DBusError;
-use super::message::DBusMessageType;
 use super::server::DBusServer;
 
 use std::collections::btree_map::{BTreeMap, Entry};
+use std::rc::Rc;
 
-pub struct DBusRunner<'a> {
-    conn: &'a DBusConnection,
+pub struct DBusRunner {
+    conn: Rc<DBusConnection>,
 
-    listeners: Vec<DBusServer<'a>>,
-    servers: BTreeMap<String, DBusServer<'a>>,
+    listeners: Vec<DBusServer>,
+    servers: BTreeMap<String, DBusServer>,
 }
 
-impl<'a> DBusRunner<'a> {
-    pub fn new(conn: &'a DBusConnection) -> Result<DBusRunner<'a>, DBusError> {
+impl DBusRunner {
+    pub fn new(conn: DBusConnection) -> Result<DBusRunner, DBusError> {
         Ok(DBusRunner {
-            conn: conn,
+            conn: Rc::new(conn),
 
             listeners: vec![],
             servers: BTreeMap::new(),
         })
     }
 
-    pub fn add_listener(&mut self, name: &str) -> Result<&mut DBusServer<'a>, DBusError> {
-        let listener = try!(DBusServer::new_listener(&self.conn, name));
+    pub fn add_listener(&mut self, name: &str) -> Result<&mut DBusServer, DBusError> {
+        let listener = try!(DBusServer::new_listener(self.conn.clone(), name));
 
         self.listeners.push(listener);
 
         Ok(self.listeners.last_mut().unwrap())
     }
 
-    pub fn add_server(&mut self, name: &str) -> Result<&mut DBusServer<'a>, DBusError> {
+    pub fn add_server(&mut self, name: &str) -> Result<&mut DBusServer, DBusError> {
         match self.servers.entry(name.to_owned()) {
             Entry::Vacant(v)    => {
-                let server = try!(DBusServer::new(&self.conn, name));
+                let server = try!(DBusServer::new(self.conn.clone(), name));
 
                 Ok(v.insert(server))
             },
@@ -51,26 +48,22 @@ impl<'a> DBusRunner<'a> {
         }
     }
 
-    pub fn run(&mut self, timeout: i32) -> () {
+    pub fn run(&mut self) -> () {
         let listeners = &mut self.listeners;
         let servers = &mut self.servers;
 
-        self.conn._connection().iter(timeout).fold((), |_, item| {
-            match item {
-                ConnectionItem::MethodCall(m) => Some(m),
-                ConnectionItem::Signal(s)     => Some(s),
-                ConnectionItem::Nothing       => None,
-            }.as_mut().map(|m| {
-                if m.msg_type() == DBusMessageType::Signal {
-                    for listener in listeners.iter_mut() {
-                        listener.handle_message(m);
-                    }
-                }
+        // TODO: add dummy objects to servers
 
-                servers.iter_mut().fold(Some(m), |opt_m, (_, server)| {
-                    opt_m.and_then(|m| {
-                        server.handle_message(m)
-                    })
+        self.conn.iter().fold((), |_, mut message| {
+            if message.is_signal() {
+                for listener in listeners.iter_mut() {
+                    listener.handle_message(&mut message);
+                }
+            }
+
+            servers.iter_mut().fold(Some(&mut message), |opt_m, (_, server)| {
+                opt_m.and_then(|m| {
+                    server.handle_message(m)
                 })
             });
         });
