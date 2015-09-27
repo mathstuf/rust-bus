@@ -607,7 +607,7 @@ impl InterfacesBuilder {
     /// `org.freedesktop.DBus.Introspectable` standard interfaces to the object.
     ///
     /// Once this is called, further interfaces may not be added once this is called.
-    pub fn finalize(mut self, children: ChildrenList) -> Result<Interfaces, Error> {
+    pub fn finalize(mut self, children: &ChildrenList) -> Result<Interfaces, Error> {
         self = try!(Ok(self)
                 .and_then(|this| {
                     this.add_interface("org.freedesktop.DBus.Peer",
@@ -620,7 +620,7 @@ impl InterfacesBuilder {
                     let map_ref = Rc::downgrade(&this.map);
                     this.add_interface("org.freedesktop.DBus.Introspectable",
                                        IntrospectableInterface::new(map_ref,
-                                                                    Rc::downgrade(&children)))
+                                                                    Rc::downgrade(children)))
                 }));
 
         Ok(Interfaces {
@@ -750,7 +750,7 @@ fn empty_interface() {
     let ifaces = Interfaces::new();
     let children = Rc::new(RefCell::new(vec![]));
 
-    let ifaces = ifaces.finalize(children.clone()).unwrap();
+    let ifaces = ifaces.finalize(&children).unwrap();
 
     {
         let map = ifaces.map.borrow();
