@@ -14,15 +14,42 @@ pub struct DBusArgument {
     signature: String,
 }
 
+impl DBusArgument {
+    pub fn new(name: &str, sig: &str) -> DBusArgument {
+        DBusArgument {
+            name: name.to_owned(),
+            signature: sig.to_owned(),
+        }
+    }
+}
+
 pub struct DBusAnnotation {
     name: String,
     value: String,
 }
 type DBusAnnotations = Vec<DBusAnnotation>;
 
+impl DBusAnnotation {
+    pub fn new(name: &str, value: &str) -> DBusAnnotation {
+        DBusAnnotation {
+            name: name.to_owned(),
+            value: value.to_owned(),
+        }
+    }
+}
+
 pub struct DBusErrorMessage {
     name: String,
     message: String,
+}
+
+impl DBusErrorMessage {
+    pub fn new(name: &str, message: &str) -> DBusErrorMessage {
+        DBusErrorMessage {
+            name: name.to_owned(),
+            message: message.to_owned(),
+        }
+    }
 }
 
 pub type DBusMethodResult = Result<Vec<DBusValue>, DBusErrorMessage>;
@@ -33,6 +60,36 @@ pub struct DBusMethod {
     out_args: Vec<DBusArgument>,
     cb: DBusMethodHandler,
     anns: DBusAnnotations,
+}
+
+impl DBusMethod {
+    pub fn new<F>(cb: F) -> DBusMethod
+        where F: FnMut(&mut DBusMessage) -> DBusMethodResult + 'static {
+        DBusMethod {
+            in_args: vec![],
+            out_args: vec![],
+            cb: Box::new(cb),
+            anns: vec![],
+        }
+    }
+
+    pub fn add_argument(mut self, arg: DBusArgument) -> DBusMethod {
+        self.in_args.push(arg);
+
+        self
+    }
+
+    pub fn add_result(mut self, arg: DBusArgument) -> DBusMethod {
+        self.out_args.push(arg);
+
+        self
+    }
+
+    pub fn annotate(mut self, ann: DBusAnnotation) -> DBusMethod {
+        self.anns.push(ann);
+
+        self
+    }
 }
 
 pub type DBusPropertyGetResult = Result<DBusValue, DBusErrorMessage>;
@@ -63,15 +120,96 @@ pub struct DBusProperty {
     anns: DBusAnnotations,
 }
 
+impl DBusProperty {
+    fn new(sig: DBusSignature, access: PropertyAccess) -> DBusProperty {
+        DBusProperty {
+            signature: sig,
+            access: access,
+            anns: vec![],
+        }
+    }
+
+    pub fn new_ro(sig: DBusSignature, access: Box<DBusPropertyReadHandler>) -> DBusProperty {
+        DBusProperty::new(sig, PropertyAccess::RO(access))
+    }
+
+    pub fn new_rw(sig: DBusSignature, access: Box<DBusPropertyReadWriteHandler>) -> DBusProperty {
+        DBusProperty::new(sig, PropertyAccess::RW(access))
+    }
+
+    pub fn new_wo(sig: DBusSignature, access: Box<DBusPropertyWriteHandler>) -> DBusProperty {
+        DBusProperty::new(sig, PropertyAccess::WO(access))
+    }
+
+    pub fn annotate(mut self, ann: DBusAnnotation) -> DBusProperty {
+        self.anns.push(ann);
+
+        self
+    }
+}
+
 pub struct DBusSignal {
     args: Vec<DBusArgument>,
     anns: DBusAnnotations,
+}
+
+impl DBusSignal {
+    pub fn new() -> DBusSignal {
+        DBusSignal {
+            args: vec![],
+            anns: vec![],
+        }
+    }
+
+    pub fn add_argument(mut self, arg: DBusArgument) -> DBusSignal {
+        self.args.push(arg);
+
+        self
+    }
+
+    pub fn annotate(mut self, ann: DBusAnnotation) -> DBusSignal {
+        self.anns.push(ann);
+
+        self
+    }
 }
 
 pub struct DBusInterface {
     methods: DBusMap<DBusMethod>,
     properties: DBusMap<DBusProperty>,
     signals: DBusMap<DBusSignal>,
+}
+
+impl DBusInterface {
+    pub fn new() -> DBusInterface {
+        DBusInterface {
+            methods: BTreeMap::new(),
+            properties: BTreeMap::new(),
+            signals: BTreeMap::new(),
+        }
+    }
+
+    pub fn add_method(mut self, name: &str, method: DBusMethod) -> DBusInterface {
+        self.methods.insert(name.to_owned(), method);
+
+        self
+    }
+
+    pub fn add_property(mut self, name: &str, property: DBusProperty) -> DBusInterface {
+        self.properties.insert(name.to_owned(), property);
+
+        self
+    }
+
+    pub fn get_property(&self, name: &str) -> Option<&DBusProperty> {
+        self.properties.get(name)
+    }
+
+    pub fn add_signal(mut self, name: &str, signal: DBusSignal) -> DBusInterface {
+        self.signals.insert(name.to_owned(), signal);
+
+        self
+    }
 }
 
 type InterfaceMap = Rc<RefCell<BTreeMap<String, DBusInterface>>>;
