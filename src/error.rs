@@ -17,7 +17,6 @@ pub enum DBusError {
     NoSuchPath(String),
     ExtractArguments(demarshal::DemarshalError),
     InterfaceAlreadyRegistered(String),
-    InterfaceMapFinalized(String),
 }
 
 impl Display for DBusError {
@@ -32,7 +31,6 @@ impl Display for DBusError {
             DBusError::NoSuchPath(ref path)                 => write!(f, "no such path: {}", path),
             DBusError::ExtractArguments(ref dmerr)          => write!(f, "failed to extract arguments: {}", dmerr),
             DBusError::InterfaceAlreadyRegistered(ref name) => write!(f, "interface already registered: {}", name),
-            DBusError::InterfaceMapFinalized(ref name)      => write!(f, "interface has been finalized; cannot add {}", name),
         }
     }
 }

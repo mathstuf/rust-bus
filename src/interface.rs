@@ -454,26 +454,51 @@ fn require_interface<'a>(map: &'a Ref<'a, DBusMap<DBusInterface>>, name: &str) -
 
 type InterfaceMap = Rc<RefCell<DBusMap<DBusInterface>>>;
 
+pub struct DBusInterfaceMapBuilder {
+    map: DBusMap<DBusInterface>,
+}
 pub struct DBusInterfaceMap {
     map: InterfaceMap,
-    finalized: bool,
 }
 
-impl DBusInterfaceMap {
-    pub fn new() -> DBusInterfaceMap {
-        DBusInterfaceMap {
-            map: Rc::new(RefCell::new(DBusMap::new())),
-            finalized: false,
+impl DBusInterfaceMapBuilder {
+    pub fn new() -> DBusInterfaceMapBuilder {
+        DBusInterfaceMapBuilder {
+            map: DBusMap::new(),
         }
     }
 
-    // Marked as mut for intent; Rc<> doesn't require it though.
-    #[allow(unused_mut)]
-    pub fn add_interface(mut self, name: &str, iface: DBusInterface) -> Result<DBusInterfaceMap, DBusError> {
-        if self.finalized {
-            return Err(DBusError::InterfaceMapFinalized(name.to_owned()));
-        }
+    pub fn add_interface(mut self, name: &str, iface: DBusInterface) -> Result<Self, DBusError> {
+        match self.map.entry(name.to_owned()) {
+            Entry::Vacant(v)    => {
+                v.insert(iface);
 
+                Ok(())
+            },
+            Entry::Occupied(_)  => Err(DBusError::InterfaceAlreadyRegistered(name.to_owned())),
+        }.map(|_| self)
+    }
+}
+
+impl DBusInterfaceMap {
+    pub fn new(builder: DBusInterfaceMapBuilder, children: DBusChildrenList) -> Result<DBusInterfaceMap, DBusError> {
+        let this = DBusInterfaceMap {
+            map: Rc::new(RefCell::new(builder.map)),
+        };
+
+        Ok(this)
+            .and_then(|this| {
+                this.add_interface("org.freedesktop.DBus.Peer", DBusPeerInterface::new())
+            }).and_then(|this| {
+                let property_map = this.map.clone();
+                this.add_interface("org.freedesktop.DBus.Properties", DBusPropertyInterface::new(property_map))
+            }).and_then(|this| {
+                let introspectable_map = this.map.clone();
+                this.add_interface("org.freedesktop.DBus.Introspectable", DBusIntrospectableInterface::new(introspectable_map, children))
+            })
+    }
+
+    fn add_interface(self, name: &str, iface: DBusInterface) -> Result<Self, DBusError> {
         {
             let mut map = self.map.borrow_mut();
 
@@ -486,22 +511,6 @@ impl DBusInterfaceMap {
                 Entry::Occupied(_)  => Err(DBusError::InterfaceAlreadyRegistered(name.to_owned())),
             }
         }.map(|_| self)
-    }
-
-    pub fn finalize(mut self, children: DBusChildrenList) -> Result<DBusInterfaceMap, DBusError> {
-        self = try!(Ok(self)
-                .and_then(|this| {
-                    this.add_interface("org.freedesktop.DBus.Peer", DBusPeerInterface::new())
-                }).and_then(|this| {
-                    let property_map = this.map.clone();
-                    this.add_interface("org.freedesktop.DBus.Properties", DBusPropertyInterface::new(property_map))
-                }).and_then(|this| {
-                    let introspectable_map = this.map.clone();
-                    this.add_interface("org.freedesktop.DBus.Introspectable", DBusIntrospectableInterface::new(introspectable_map, children))
-                }));
-
-        self.finalized = true;
-        Ok(self)
     }
 
     pub fn handle(&self, conn: &DBusConnection, msg: &mut DBusMessage) -> Option<Result<(), ()>> {

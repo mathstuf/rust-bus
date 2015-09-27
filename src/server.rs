@@ -1,6 +1,6 @@
 use super::connection::{DBusConnection, DBusReleaseNameReply, DBusRequestNameFlags};
 use super::error::DBusError;
-use super::interface::DBusInterfaceMap;
+use super::interface::{DBusMap, DBusInterfaceMap, DBusInterfaceMapBuilder};
 use super::message::DBusMessage;
 use super::object::DBusObject;
 use super::target::DBusTarget;
@@ -65,7 +65,7 @@ impl DBusServer {
         &self.name
     }
 
-    pub fn add_object(&mut self, path: &str, iface_map: DBusInterfaceMap) -> Result<&mut Self, DBusError> {
+    pub fn add_object(&mut self, path: &str, iface_map: DBusInterfaceMapBuilder) -> Result<&mut Self, DBusError> {
         if !self.can_handle {
             return Err(DBusError::NoServerName);
         }
@@ -74,7 +74,7 @@ impl DBusServer {
             Entry::Vacant(v)    => {
                 // TODO: store this
                 let children = Rc::new(RefCell::new(vec![]));
-                let rc_iface_map = Rc::new(try!(iface_map.finalize(children)));
+                let rc_iface_map = Rc::new(try!(DBusInterfaceMap::new(iface_map, children)));
 
                 let obj = DBusObject::new(path, rc_iface_map.clone());
 
