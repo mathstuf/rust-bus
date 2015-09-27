@@ -363,10 +363,14 @@ fn require_interface<'a>(map: &'a Ref<'a, Map<Interface>>, name: &str) -> Result
         })
 }
 
+/// A builder for a set of interfaces that an object implements.
+pub struct InterfacesBuilder {
+    map: InterfaceMap,
+}
+
 /// A set of interfaces that an object implements.
 pub struct Interfaces {
     map: InterfaceMap,
-    finalized: bool,
 }
 
 struct PeerInterface;
@@ -577,23 +581,11 @@ impl CallHeaders {
 
 }
 
-impl Interfaces {
-    /// Create a new, empty set of interfaces.
-    pub fn new() -> Self {
-        Interfaces {
-            map: Rc::new(RefCell::new(Map::new())),
-            finalized: false,
-        }
-    }
-
+impl InterfacesBuilder {
     // Marked as mut for intent; Rc<> doesn't require it though.
     #[allow(unused_mut)]
     /// Add an interface to the set.
     pub fn add_interface(mut self, name: &str, iface: Interface) -> Result<Self, Error> {
-        if self.finalized {
-            return Err(Error::InterfacesFinalized(name.to_owned()));
-        }
-
         {
             let mut map = self.map.borrow_mut();
 
@@ -615,7 +607,7 @@ impl Interfaces {
     /// `org.freedesktop.DBus.Introspectable` standard interfaces to the object.
     ///
     /// Once this is called, further interfaces may not be added once this is called.
-    pub fn finalize(mut self, children: ChildrenList) -> Result<Self, Error> {
+    pub fn finalize(mut self, children: ChildrenList) -> Result<Interfaces, Error> {
         self = try!(Ok(self)
                 .and_then(|this| {
                     this.add_interface("org.freedesktop.DBus.Peer",
@@ -631,8 +623,18 @@ impl Interfaces {
                                                                     Rc::downgrade(&children)))
                 }));
 
-        self.finalized = true;
-        Ok(self)
+        Ok(Interfaces {
+            map: self.map,
+        })
+    }
+}
+
+impl Interfaces {
+    /// Create a new, empty set of interfaces.
+    pub fn new() -> InterfacesBuilder {
+        InterfacesBuilder {
+            map: Rc::new(RefCell::new(Map::new())),
+        }
     }
 
     fn _signature(args: &Vec<Argument>) -> String {
@@ -748,11 +750,7 @@ fn empty_interface() {
     let ifaces = Interfaces::new();
     let children = Rc::new(RefCell::new(vec![]));
 
-    assert_eq!(ifaces.finalized, false);
-
     let ifaces = ifaces.finalize(children.clone()).unwrap();
-
-    assert_eq!(ifaces.finalized, true);
 
     {
         let map = ifaces.map.borrow();

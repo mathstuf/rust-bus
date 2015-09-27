@@ -34,6 +34,7 @@ pub use interface::ChildrenList;
 pub use interface::ErrorMessage;
 pub use interface::Interface;
 pub use interface::Interfaces;
+pub use interface::InterfacesBuilder;
 pub use interface::Method;
 pub use interface::MethodHandler;
 pub use interface::MethodResult;

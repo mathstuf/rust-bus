@@ -1,6 +1,6 @@
 use super::connection::Connection;
 use super::error::Error;
-use super::interface::{ChildrenList, Interfaces};
+use super::interface::{ChildrenList, Interfaces, InterfacesBuilder};
 use super::message::Message;
 
 /// An object which may receive messages.
@@ -14,7 +14,7 @@ impl Object {
     /// Create a new object with the given path, interfaces, and children.
     ///
     /// The list of children is managed by the object owning the object.
-    pub fn new(path: &str, interfaces: Interfaces, children: ChildrenList) -> Result<Self, Error> {
+    pub fn new(path: &str, interfaces: InterfacesBuilder, children: ChildrenList) -> Result<Self, Error> {
         Ok(Object {
             path: path.to_owned(),
             interfaces: try!(interfaces.finalize(children)),

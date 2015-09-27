@@ -3,7 +3,7 @@ use self::core::ops::DerefMut;
 
 use super::connection::{Connection, ReleaseNameReply, DO_NOT_QUEUE};
 use super::error::Error;
-use super::interface::Interfaces;
+use super::interface::InterfacesBuilder;
 use super::message::{Message, MessageType};
 use super::object::Object;
 use super::target::Target;
@@ -74,7 +74,7 @@ impl Server {
     }
 
     /// Add an object to the server with the given interfaces.
-    pub fn add_object(&mut self, path: &str, ifaces: Interfaces) -> Result<&mut Self, Error> {
+    pub fn add_object(&mut self, path: &str, ifaces: InterfacesBuilder) -> Result<&mut Self, Error> {
         if !self.can_handle {
             return Err(Error::NoServerName);
         }

@@ -27,8 +27,6 @@ pub enum Error {
     ExtractArguments(demarshal::DemarshalError),
     /// An attempt to redefine an interface for an object was made.
     InterfaceAlreadyRegistered(String),
-    /// An attempt to add an interface to an object which is finalized was made.
-    InterfacesFinalized(String),
 }
 
 impl Display for Error {
@@ -43,7 +41,6 @@ impl Display for Error {
             Error::NoSuchPath(ref path)                 => write!(f, "no such path: {}", path),
             Error::ExtractArguments(ref dmerr)          => write!(f, "failed to extract arguments: {}", dmerr),
             Error::InterfaceAlreadyRegistered(ref name) => write!(f, "interface already registered: {}", name),
-            Error::InterfacesFinalized(ref name)        => write!(f, "interfaces have been finalized; cannot add {}", name),
         }
     }
 }
