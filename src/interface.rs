@@ -78,11 +78,15 @@ type InterfaceMap = Rc<RefCell<BTreeMap<String, DBusInterface>>>;
 
 pub struct DBusInterfaceMap {
     map: InterfaceMap,
+    finalized: bool,
 }
 
 impl DBusInterfaceMap {
     pub fn finalize(mut self) -> Result<DBusInterfaceMap, DBusError> {
-        unimplemented!()
+        // TODO: Add core interfaces.
+
+        self.finalized = true;
+        Ok(self)
     }
 
     pub fn handle(&self, conn: &DBusConnection, msg: &mut DBusMessage) -> Option<Result<(), ()>> {
