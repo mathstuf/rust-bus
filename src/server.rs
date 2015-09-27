@@ -1,6 +1,6 @@
 use super::connection::{DBusConnection, DBusReleaseNameReply, DBusRequestNameFlags};
 use super::error::DBusError;
-use super::interface::{DBusMap, DBusInterfaceMap, DBusInterfaceMapBuilder};
+use super::interface::{DBusMap, DBusChildrenList, DBusInterfaceMap, DBusInterfaceMapBuilder};
 use super::message::DBusMessage;
 use super::object::DBusObject;
 use super::target::DBusTarget;
@@ -20,13 +20,139 @@ fn _add_handler(handlers: &mut DBusSignalHandlerMap, signal: DBusTarget, handler
     };
 }
 
+struct DBusObjectTreeCursor<'a> {
+    tree: &'a mut DBusObjectTree,
+}
+
+impl<'a> DBusObjectTreeCursor<'a> {
+    pub fn new(tree: &'a mut DBusObjectTree) -> Self {
+        DBusObjectTreeCursor {
+            tree: tree,
+        }
+    }
+
+    pub fn tree(&self) -> &DBusObjectTree {
+        self.tree
+    }
+
+    pub fn has_object(&self) -> bool {
+        self.tree.object.is_some()
+    }
+
+    pub fn set_object(&mut self, object: DBusObject) {
+        self.tree.object = Some(object);
+    }
+
+    pub fn find_or_create(self, name: &str) -> Self {
+        DBusObjectTreeCursor::new(self.tree.find_or_create_object(name))
+    }
+
+    pub fn find(self, name: &str) -> Option<Self> {
+        self.tree.find_object(name).map(DBusObjectTreeCursor::new)
+    }
+
+    pub fn remove(self, name: &str) -> Option<DBusObject> {
+        self.tree.remove_object(name)
+    }
+}
+
+struct DBusObjectTree {
+    object: Option<DBusObject>,
+    children_names: DBusChildrenList,
+    children: DBusMap<DBusObjectTree>,
+}
+
+impl DBusObjectTree {
+    pub fn new() -> Self {
+        DBusObjectTree {
+            object: None,
+            children_names: Rc::new(RefCell::new(vec![])),
+            children: DBusMap::new(),
+        }
+    }
+
+    pub fn find_object(&mut self, name: &str) -> Option<&mut Self> {
+        self.children.get_mut(name)
+    }
+
+    pub fn find_or_create_object(&mut self, name: &str) -> &mut Self {
+        let children_mod = self.children_names.clone();
+
+        self.children.entry(name.to_owned())
+            .or_insert_with(move || {
+                children_mod.borrow_mut().push(name.to_owned());
+                DBusObjectTree::new()
+            })
+    }
+
+    pub fn remove_object(&mut self, name: &str) -> Option<DBusObject> {
+        //let children_mod = self.children_names.clone();
+
+        self.children.remove(name).map(|obj| {
+            unimplemented!()
+        })
+    }
+
+    pub fn insert(&mut self, path: String, iface_map: DBusInterfaceMapBuilder) -> Result<(), DBusError> {
+        if !path.starts_with("/") {
+            return Err(DBusError::InvalidPath(path));
+        }
+
+        let top_cursor = DBusObjectTreeCursor::new(self);
+
+        let mut ins_cursor = try!(path.split("/").skip(1).fold(Ok(top_cursor), |res_cursor, component| {
+            res_cursor.and_then(|cursor| {
+                if component.is_empty() {
+                    return Err(DBusError::InvalidPath(path.clone()));
+                }
+
+                Ok(cursor.find_or_create(component))
+            })
+        }));
+
+        if ins_cursor.has_object() {
+            return Err(DBusError::PathAlreadyRegistered(path));
+        }
+
+        let iface_map = Rc::new(try!(DBusInterfaceMap::new(iface_map, ins_cursor.tree().children_names.clone())));
+        Ok(ins_cursor.set_object(DBusObject::new(&path, iface_map)))
+
+        // TODO: emit InterfacesAdded signal
+    }
+
+    pub fn remove(&mut self, path: String) -> Result<DBusObject, DBusError> {
+        if !path.starts_with("/") {
+            return Err(DBusError::InvalidPath(path));
+        }
+
+        unimplemented!()
+
+        /*
+        let full_path = path.clone();
+        let top_cursor = DBusObjectTreeCursor::new(self);
+
+        path.split("/").skip(1).fold(Ok(top_cursor), |res_cursor, component| {
+            res_cursor.and_then(|cursor| {
+                if component.is_empty() {
+                    return Err(DBusError::InvalidPath(full_path.clone()));
+                }
+
+                cursor.find(component)
+                    .ok_or(DBusError::NoSuchPath(full_path.clone()))
+            })
+        }).and_then(|cursor| {
+            cursor.remove()
+        }).ok_or(DBusError::NoSuchPath(full_path.clone()))
+        */
+    }
+}
+
 pub struct DBusServer {
     conn: Rc<DBusConnection>,
     name: String,
     can_handle: bool,
 
-    // TODO: store children information
-    objects: DBusMap<DBusObject>,
+    objects: DBusObjectTree,
     signals: DBusSignalHandlerMap,
     namespace_signals: DBusSignalHandlerMap,
 }
@@ -38,7 +164,7 @@ impl DBusServer {
             name: name.to_owned(),
             can_handle: false,
 
-            objects: DBusMap::new(),
+            objects: DBusObjectTree::new(),
             signals: DBusSignalHandlerMap::new(),
             namespace_signals: DBusSignalHandlerMap::new(),
         })
@@ -55,7 +181,7 @@ impl DBusServer {
             name: name.to_owned(),
             can_handle: true,
 
-            objects: DBusMap::new(),
+            objects: DBusObjectTree::new(),
             signals: DBusSignalHandlerMap::new(),
             namespace_signals: DBusSignalHandlerMap::new(),
         })
@@ -70,22 +196,8 @@ impl DBusServer {
             return Err(DBusError::NoServerName);
         }
 
-        match self.objects.entry(path.to_owned()) {
-            Entry::Vacant(v)    => {
-                // TODO: store this
-                let children = Rc::new(RefCell::new(vec![]));
-                let rc_iface_map = Rc::new(try!(DBusInterfaceMap::new(iface_map, children)));
-
-                let obj = DBusObject::new(path, rc_iface_map.clone());
-
-                // TODO: emit InterfacesAdded signal
-
-                v.insert(obj);
-
-                Ok(())
-            },
-            Entry::Occupied(_)  => Err(DBusError::PathAlreadyRegistered(path.to_owned())),
-        }.map(|_| self)
+        self.objects.insert(path.to_owned(), iface_map)
+            .map(|_| self)
     }
 
     pub fn remove_object(&mut self, path: &str) -> Result<&mut Self, DBusError> {
@@ -93,14 +205,17 @@ impl DBusServer {
             return Err(DBusError::NoServerName);
         }
 
-        match self.objects.remove(path) {
-            Some(_) => {
-                //TODO: emit InterfacesRemoved signal
+        unimplemented!()
 
-                Ok(self)
-            },
-            None    => Err(DBusError::NoSuchPath(path.to_owned())),
-        }
+        /*
+        self.objects.remove(path.to_owned())
+            .map(|obj| {
+                // TODO: emit InterfacesRemoved signal
+                // TODO: add in dummy object
+
+                self
+            })
+        */
     }
 
     pub fn connect(&mut self, signal: DBusTarget, callback: DBusSignalHandler) -> Result<&mut Self, DBusError> {
@@ -139,6 +254,8 @@ impl DBusServer {
 
     fn _call_method<'b>(&mut self, m: &'b mut DBusMessage) -> Option<&'b mut DBusMessage> {
         let conn = self.conn.clone();
+        unimplemented!()
+        /*
         self.objects.iter_mut().fold(Some(m), |opt_m, (_, object)| {
             opt_m.and_then(|mut m| {
                 match object.handle_message(&conn, &mut m) {
@@ -151,6 +268,7 @@ impl DBusServer {
                 }
             })
         })
+        */
     }
 
     fn _match_signal<'b>(&mut self, m: &'b mut DBusMessage) -> &'b mut DBusMessage {
