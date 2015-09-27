@@ -1,8 +1,11 @@
+use super::connection::DBusConnection;
 use super::error::DBusError;
 use super::message::DBusMessage;
 use super::value::{DBusSignature, DBusValue};
 
+use std::cell::RefCell;
 use std::collections::btree_map::BTreeMap;
+use std::rc::Rc;
 
 type DBusMap<T> = BTreeMap<String, T>;
 
@@ -71,7 +74,7 @@ pub struct DBusInterface {
     signals: DBusMap<DBusSignal>,
 }
 
-type InterfaceMap = BTreeMap<String, DBusInterface>;
+type InterfaceMap = Rc<RefCell<BTreeMap<String, DBusInterface>>>;
 
 pub struct DBusInterfaceMap {
     map: InterfaceMap,
@@ -80,5 +83,31 @@ pub struct DBusInterfaceMap {
 impl DBusInterfaceMap {
     pub fn finalize(mut self) -> Result<DBusInterfaceMap, DBusError> {
         unimplemented!()
+    }
+
+    pub fn handle(&self, conn: &DBusConnection, msg: &mut DBusMessage) -> Option<Result<(), ()>> {
+        msg.call_headers().and_then(|hdrs| {
+            let iface_name = hdrs.interface;
+            let method_name = hdrs.method;
+            self.map.borrow_mut().get_mut(&iface_name).and_then(|iface| iface.methods.get_mut(&method_name)).map(|method| {
+                // TODO: Verify input argument signature.
+
+                let msg = match (method.cb)(msg) {
+                    Ok(vals) => {
+                        vals.iter().fold(msg.return_message(), |msg, val| {
+                            msg.add_argument(val)
+                        })
+                    },
+                    Err(err) => msg.error_message(&err.name)
+                                   .add_argument(&err.message),
+                };
+
+                // TODO: Verify that the signature matches the return.
+
+                conn.send(msg)
+                    .map(|_| ())
+                    .map_err(|_| ())
+            })
+        })
     }
 }
