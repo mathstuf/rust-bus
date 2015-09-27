@@ -229,10 +229,8 @@ impl DBusInterface {
                 PropertyAccess::RO(ref ro) => ro.get().map(|v| vec![v]),
                 PropertyAccess::RW(ref rw) => rw.get().map(|v| vec![v]),
                 PropertyAccess::WO(_) =>
-                    Err(DBusErrorMessage {
-                        name: "org.freedesktop.DBus.Error.Failed".to_owned(),
-                        message: format!("property is write-only: {}", name),
-                    }),
+                    Err(DBusErrorMessage::new("org.freedesktop.DBus.Error.Failed",
+                                              format!("property is write-only: {}", name))),
             }
         })
     }
