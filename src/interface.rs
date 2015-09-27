@@ -266,9 +266,90 @@ impl DBusInterface {
 
 type InterfaceMap = Rc<RefCell<DBusMap<DBusInterface>>>;
 
+fn require_interface<'a>(map: &'a Ref<'a, DBusMap<DBusInterface>>, name: &str) -> Result<&'a DBusInterface, DBusErrorMessage> {
+    map.get(name).ok_or(
+        DBusErrorMessage {
+            name: "org.freedesktop.DBus.Error.UnknownInterface".to_owned(),
+            message: format!("unknown interface: {}", name),
+        })
+}
+
 pub struct DBusInterfaceMap {
     map: InterfaceMap,
     finalized: bool,
+}
+
+struct DBusPeerInterface;
+
+impl DBusPeerInterface {
+    fn ping() -> DBusMethodResult {
+        Ok(vec![])
+    }
+
+    fn get_machine_id() -> DBusMethodResult {
+        let mid = format!("{}", MachineId::get());
+        Ok(vec![DBusValue::BasicValue(DBusBasicValue::String(mid))])
+    }
+
+    pub fn new() -> DBusInterface {
+        DBusInterface::new()
+            .add_method("Ping", DBusMethod::new(|_| Self::ping()))
+            .add_method("GetMachineId", DBusMethod::new(|_| Self::get_machine_id())
+                .add_result(DBusArgument::new("machine_uuid", "s")))
+    }
+}
+
+struct DBusPropertyInterface;
+
+impl DBusPropertyInterface {
+    fn get_property(map: &InterfaceMap, m: &mut DBusMessage) -> DBusMethodResult {
+        let values = try!(DBusArguments::new(m));
+        let iface = try!(values.extract_string(0));
+        let property = try!(values.extract_string(1));
+
+        require_interface(&map.borrow(), iface).and_then(|iface| {
+            iface.get_property_value(property)
+        })
+    }
+
+    fn set_property(map: &mut InterfaceMap, m: &mut DBusMessage) -> DBusMethodResult {
+        let values = try!(DBusArguments::new(m));
+        let iface = try!(values.extract_string(0));
+        let property = try!(values.extract_string(1));
+        let value = try!(values.extract(2));
+
+        require_interface(&map.borrow(), iface).and_then(|iface| {
+            iface.set_property_value(property, value)
+        })
+    }
+
+    fn get_all_properties(map: &InterfaceMap, m: &mut DBusMessage) -> DBusMethodResult {
+        let values = try!(DBusArguments::new(m));
+        let iface = try!(values.extract_string(0));
+
+        require_interface(&map.borrow(), iface).map(|iface| {
+            vec![DBusValue::Dictionary(iface.get_property_map())]
+        })
+    }
+
+    pub fn new(map: InterfaceMap) -> DBusInterface {
+        let get_map = map.clone();
+        let mut set_map = map.clone();
+        let get_all_map = map.clone();
+
+        DBusInterface::new()
+            .add_method("Get", DBusMethod::new(move |m| Self::get_property(&get_map, m))
+                .add_argument(DBusArgument::new("interface_name", "s"))
+                .add_argument(DBusArgument::new("property_name", "s"))
+                .add_result(DBusArgument::new("value", "v")))
+            .add_method("Set", DBusMethod::new(move |m| Self::set_property(&mut set_map, m))
+                .add_argument(DBusArgument::new("interface_name", "s"))
+                .add_argument(DBusArgument::new("property_name", "s"))
+                .add_result(DBusArgument::new("value", "v")))
+            .add_method("GetAll", DBusMethod::new(move |m| Self::get_all_properties(&get_all_map, m))
+                .add_argument(DBusArgument::new("interface_name", "s"))
+                .add_result(DBusArgument::new("props", "{sv}")))
+    }
 }
 
 impl DBusInterfaceMap {
@@ -300,79 +381,11 @@ impl DBusInterfaceMap {
         }.map(|_| self)
     }
 
-    fn ping() -> DBusMethodResult {
-        Ok(vec![])
-    }
-
-    fn get_machine_id() -> DBusMethodResult {
-        let mid = format!("{}", MachineId::get());
-        Ok(vec![DBusValue::BasicValue(DBusBasicValue::String(mid))])
-    }
-
-    fn _require_interface<'a>(map: &'a Ref<'a, DBusMap<DBusInterface>>, name: &str) -> Result<&'a DBusInterface, DBusErrorMessage> {
-        map.get(name).ok_or(
-            DBusErrorMessage {
-                name: "org.freedesktop.DBus.Error.UnknownInterface".to_owned(),
-                message: format!("unknown interface: {}", name),
-            })
-    }
-
-    fn get_property(map: &InterfaceMap, m: &mut DBusMessage) -> DBusMethodResult {
-        let values = try!(DBusArguments::new(m));
-        let iface = try!(values.extract_string(0));
-        let property = try!(values.extract_string(1));
-
-        Self::_require_interface(&map.borrow(), iface).and_then(|iface| {
-            iface.get_property_value(property)
-        })
-    }
-
-    fn set_property(map: &mut InterfaceMap, m: &mut DBusMessage) -> DBusMethodResult {
-        let values = try!(DBusArguments::new(m));
-        let iface = try!(values.extract_string(0));
-        let property = try!(values.extract_string(1));
-        let value = try!(values.extract(2));
-
-        Self::_require_interface(&map.borrow(), iface).and_then(|iface| {
-            iface.set_property_value(property, value)
-        })
-    }
-
-    fn get_all_properties(map: &InterfaceMap, m: &mut DBusMessage) -> DBusMethodResult {
-        let values = try!(DBusArguments::new(m));
-        let iface = try!(values.extract_string(0));
-
-        Self::_require_interface(&map.borrow(), iface).map(|iface| {
-            vec![DBusValue::Dictionary(iface.get_property_map())]
-        })
-    }
-
     pub fn finalize(mut self) -> Result<DBusInterfaceMap, DBusError> {
-        self = try!(self.add_interface("org.freedesktop.DBus.Peer", DBusInterface::new()
-            .add_method("Ping", DBusMethod::new(|_| Self::ping()))
-            .add_method("GetMachineId", DBusMethod::new(|_| Self::get_machine_id())
-                .add_result(DBusArgument::new("machine_uuid", "s")))
-        ));
+        self = try!(self.add_interface("org.freedesktop.DBus.Peer", DBusPeerInterface::new()));
 
-        let get_map = self.map.clone();
-        let mut set_map = self.map.clone();
-        let get_all_map = self.map.clone();
-
-        self = try!(self.add_interface("org.freedesktop.DBus.Properties", DBusInterface::new()
-            .add_method("Get", DBusMethod::new(move |m| Self::get_property(&get_map, m))
-                .add_argument(DBusArgument::new("interface_name", "s"))
-                .add_argument(DBusArgument::new("property_name", "s"))
-                .add_result(DBusArgument::new("value", "v")))
-            .add_method("Set", DBusMethod::new(move |m| Self::set_property(&mut set_map, m))
-                .add_argument(DBusArgument::new("interface_name", "s"))
-                .add_argument(DBusArgument::new("property_name", "s"))
-                .add_result(DBusArgument::new("value", "v")))
-            .add_method("GetAll", DBusMethod::new(move |m| Self::get_all_properties(&get_all_map, m))
-                .add_argument(DBusArgument::new("interface_name", "s"))
-                .add_result(DBusArgument::new("props", "{sv}")))
-        ));
-
-        // TODO: Add core interfaces.
+        let property_map = self.map.clone();
+        self = try!(self.add_interface("org.freedesktop.DBus.Properties", DBusPropertyInterface::new(property_map)));
 
         self.finalized = true;
         Ok(self)
