@@ -97,10 +97,15 @@ impl DBusObjectTree {
     }
 
     pub fn remove_object(&mut self, name: &str) -> Option<DBusObject> {
-        //let children_mod = self.children_names.clone();
+        let children_mod = self.children_names.clone();
 
-        self.children.remove(name).map(|obj| {
-            unimplemented!()
+        self.children.remove(name).and_then(|obj| {
+            let pos = children_mod.borrow().iter().position(|child| child == name);
+            children_mod.borrow_mut().swap_remove(pos.expect("child was not tracked?"));
+
+            // TODO: emit InterfacesRemoved signals
+
+            obj.object
         })
     }
 
@@ -142,25 +147,27 @@ impl DBusObjectTree {
             return Err(DBusError::InvalidPath(path));
         }
 
-        unimplemented!()
-
-        /*
         let full_path = path.clone();
-        let top_cursor = DBusObjectTreeCursor::new(self);
+        let mut cursor = DBusObjectTreeCursor::new(self);
 
-        path.split("/").skip(1).fold(Ok(top_cursor), |res_cursor, component| {
-            res_cursor.and_then(|cursor| {
-                if component.is_empty() {
-                    return Err(DBusError::InvalidPath(full_path.clone()));
-                }
+        let mut iter = path.split("/").skip(1).peekable();
+        loop {
+            match iter.peek() {
+                Some(component) => {
+                    if component.is_empty() {
+                        return Err(DBusError::InvalidPath(full_path.clone()));
+                    }
 
-                cursor.find(component)
-                    .ok_or(DBusError::NoSuchPath(full_path.clone()))
-            })
-        }).and_then(|cursor| {
-            cursor.remove()
-        }).ok_or(DBusError::NoSuchPath(full_path.clone()))
-        */
+                    cursor = try!(cursor.find(component).ok_or(DBusError::NoSuchPath(full_path.clone())));
+                },
+                None            => break,
+            }
+
+            iter.next();
+        }
+
+        iter.next().and_then(|component| cursor.remove(component))
+            .ok_or(DBusError::NoSuchPath(full_path))
     }
 }
 
@@ -234,17 +241,9 @@ impl DBusServer {
             return Err(DBusError::NoServerName);
         }
 
-        unimplemented!()
+        try!(self.objects.borrow_mut().remove(path.to_string()));
 
-        /*
-        self.objects.remove(path.to_string())
-            .map(|obj| {
-                // TODO: emit InterfacesRemoved signal
-                // TODO: add in dummy object
-
-                self
-            })
-        */
+        Ok(self)
     }
 
     pub fn connect(&mut self, signal: DBusTarget, callback: DBusSignalHandler) -> Result<&mut Self, DBusError> {
