@@ -360,10 +360,12 @@ impl DBusIntrospectableInterface {
         let xml = format!(concat!(
             r#"<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"\n"#,
             r#" "http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">\n"#,
+            r#"<!-- Rust EZ-DBus {} -->"#,
             r#"<node>\n"#,
             r#"{}"#, // interface
             r#"{}"#, // children
             r#"</node>\n"#),
+            env!("CARGO_PKG_VERSION"),
             Self::_to_string_map(&*map.borrow(), |k, v| Self::_introspect_interface(" ", k, v)),
             children.borrow().iter().fold("".to_owned(), |p, name| {
                 format!(r#"{} <node name="{}" />"#, p, name)
