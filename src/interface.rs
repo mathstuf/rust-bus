@@ -482,13 +482,16 @@ impl DBusInterfaceMap {
     }
 
     pub fn finalize(mut self) -> Result<DBusInterfaceMap, DBusError> {
-        self = try!(self.add_interface("org.freedesktop.DBus.Peer", DBusPeerInterface::new()));
-
-        let property_map = self.map.clone();
-        self = try!(self.add_interface("org.freedesktop.DBus.Properties", DBusPropertyInterface::new(property_map)));
-
-        let introspectable_map = self.map.clone();
-        self = try!(self.add_interface("org.freedesktop.DBus.Introspectable", DBusIntrospectableInterface::new(introspectable_map)));
+        self = try!(Ok(self)
+                .and_then(|this| {
+                    this.add_interface("org.freedesktop.DBus.Peer", DBusPeerInterface::new())
+                }).and_then(|this| {
+                    let property_map = this.map.clone();
+                    this.add_interface("org.freedesktop.DBus.Properties", DBusPropertyInterface::new(property_map))
+                }).and_then(|this| {
+                    let introspectable_map = this.map.clone();
+                    this.add_interface("org.freedesktop.DBus.Introspectable", DBusIntrospectableInterface::new(introspectable_map))
+                }));
 
         self.finalized = true;
         Ok(self)
