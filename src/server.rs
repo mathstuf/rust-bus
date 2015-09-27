@@ -285,24 +285,21 @@ impl DBusServer {
         let opt_path = m.path();
 
         opt_path.and_then(|path| {
-            match self.objects.borrow_mut().find_object(&path) {
-                Some(tree) => {
-                    tree.object.as_mut().and_then(|mut obj| {
-                        match obj.handle_message(&conn, m) {
-                            None          => Some(m),
-                            Some(Ok(()))  => None,
-                            Some(Err(())) => {
-                                println!("failed to send a reply for {:?}", m);
-                                None
-                            },
-                        }
-                    })
-                },
-                None    => {
-                    let _ = conn.send(m.error_message("org.freedesktop.DBus.Error.UnknownObject")
-                                       .add_argument(&format!("unknown object: {}", path)));
-                    None
-                }
+            if let Some(tree) = self.objects.borrow_mut().find_object(&path) {
+                tree.object.as_mut().and_then(|mut obj| {
+                    match obj.handle_message(&conn, m) {
+                        None          => Some(m),
+                        Some(Ok(()))  => None,
+                        Some(Err(())) => {
+                            println!("failed to send a reply for {:?}", m);
+                            None
+                        },
+                    }
+                })
+            } else {
+                let _ = conn.send(m.error_message("org.freedesktop.DBus.Error.UnknownObject")
+                                   .add_argument(&format!("unknown object: {}", path)));
+                None
             }
         })
     }
