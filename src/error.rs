@@ -14,6 +14,8 @@ pub enum DBusError {
     NoSuchServer(String),
     PathAlreadyRegistered(String),
     NoSuchPath(String),
+    InterfaceAlreadyRegistered(String),
+    InterfaceMapFinalized(String),
 }
 
 impl Display for DBusError {
@@ -26,6 +28,8 @@ impl Display for DBusError {
             DBusError::NoSuchServer(ref server)             => write!(f, "no such server: {}", server),
             DBusError::PathAlreadyRegistered(ref path)      => write!(f, "path already registered: {}", path),
             DBusError::NoSuchPath(ref path)                 => write!(f, "no such path: {}", path),
+            DBusError::InterfaceAlreadyRegistered(ref name) => write!(f, "interface already registered: {}", name),
+            DBusError::InterfaceMapFinalized(ref name)      => write!(f, "interface has been finalized; cannot add {}", name),
         }
     }
 }
