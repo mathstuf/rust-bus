@@ -15,7 +15,7 @@ use std::collections::btree_map::{BTreeMap, Entry};
 use std::collections::HashMap;
 use std::rc::{Rc, Weak};
 
-type Map<T> = BTreeMap<String, T>;
+pub type Map<T> = BTreeMap<String, T>;
 
 /// An argument to a method or signal.
 pub struct Argument {

@@ -21,6 +21,8 @@ pub enum Error {
     NoSuchServer(String),
     /// An object was registered to a path, but it already existed.
     PathAlreadyRegistered(String),
+    /// An object was given an invalid path.
+    InvalidPath(String),
     /// An object was requested to be removed, but it does not exist.
     NoSuchPath(String),
     /// Extracting values from a message body failed.
@@ -38,6 +40,7 @@ impl Display for Error {
             Error::ServerAlreadyRegistered(ref server)  => write!(f, "server already registered: {}", server),
             Error::NoSuchServer(ref server)             => write!(f, "no such server: {}", server),
             Error::PathAlreadyRegistered(ref path)      => write!(f, "path already registered: {}", path),
+            Error::InvalidPath(ref path)                => write!(f, "invalid path: {}", path),
             Error::NoSuchPath(ref path)                 => write!(f, "no such path: {}", path),
             Error::ExtractArguments(ref dmerr)          => write!(f, "failed to extract arguments: {}", dmerr),
             Error::InterfaceAlreadyRegistered(ref name) => write!(f, "interface already registered: {}", name),

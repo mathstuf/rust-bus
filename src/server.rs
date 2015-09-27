@@ -3,7 +3,7 @@ use self::core::ops::DerefMut;
 
 use super::connection::{Connection, ReleaseNameReply, DO_NOT_QUEUE};
 use super::error::Error;
-use super::interface::InterfacesBuilder;
+use super::interface::{Map, ChildrenList, InterfacesBuilder};
 use super::message::{Message, MessageType};
 use super::object::Object;
 use super::target::Target;
@@ -23,14 +23,149 @@ fn _add_handler(handlers: &mut SignalHandlerMap, signal: Target, handler: Signal
     };
 }
 
+struct ObjectTreeCursor<'a> {
+    tree: &'a mut ObjectTree,
+}
+
+impl<'a> ObjectTreeCursor<'a> {
+    pub fn new(tree: &'a mut ObjectTree) -> Self {
+        ObjectTreeCursor {
+            tree: tree,
+        }
+    }
+
+    pub fn tree(&self) -> &ObjectTree {
+        self.tree
+    }
+
+    pub fn has_object(&self) -> bool {
+        self.tree.object.is_some()
+    }
+
+    pub fn set_object(&mut self, object: Object) {
+        self.tree.object = Some(object);
+    }
+
+    pub fn find_or_create(self, name: &str) -> Self {
+        ObjectTreeCursor::new(self.tree.find_or_create_object(name))
+    }
+
+    pub fn find(self, name: &str) -> Option<Self> {
+        self.tree.find_object(name).map(ObjectTreeCursor::new)
+    }
+
+    pub fn remove(self, name: &str) -> Option<Object> {
+        self.tree.remove_object(name)
+    }
+}
+
+struct ObjectTree {
+    object: Option<Object>,
+    children_names: ChildrenList,
+    children: Map<ObjectTree>,
+}
+
+impl ObjectTree {
+    pub fn new() -> Self {
+        ObjectTree {
+            object: None,
+            children_names: Rc::new(RefCell::new(vec![])),
+            children: Map::new(),
+        }
+    }
+
+    pub fn find_object(&mut self, name: &str) -> Option<&mut Self> {
+        self.children.get_mut(name)
+    }
+
+    pub fn find_or_create_object(&mut self, name: &str) -> &mut Self {
+        let children_mod = self.children_names.clone();
+
+        self.children.entry(name.to_owned())
+            .or_insert_with(move || {
+                children_mod.borrow_mut().push(name.to_owned());
+                ObjectTree::new()
+            })
+    }
+
+    pub fn remove_object(&mut self, name: &str) -> Option<Object> {
+        match self.children.entry(name.to_owned()) {
+            Entry::Vacant(_)    => None,
+            Entry::Occupied(o)  => {
+                if o.object.is_none() {
+                    return None;
+                }
+
+                let object = o.object;
+
+                if o.children.empty() {
+                } else {
+                    o.object = None;
+                }
+
+                o
+            },
+        }
+    }
+
+    pub fn insert(&mut self, path: String, ifaces: InterfacesBuilder) -> Result<(), Error> {
+        if !path.starts_with("/") {
+            return Err(Error::InvalidPath(path));
+        }
+
+        let top_cursor = ObjectTreeCursor::new(self);
+
+        let mut ins_cursor = try!(path.split("/").skip(1).fold(Ok(top_cursor), |res_cursor, component| {
+            res_cursor.and_then(|cursor| {
+                if component.is_empty() {
+                    return Err(Error::InvalidPath(path.clone()));
+                }
+
+                Ok(cursor.find_or_create(component))
+            })
+        }));
+
+        if ins_cursor.has_object() {
+            return Err(Error::PathAlreadyRegistered(path));
+        }
+
+        let ifaces = try!(ifaces.finalize(&ins_cursor.tree().children_names.clone()));
+        let object = try!(Object::new(&path, ifaces));
+        Ok(ins_cursor.set_object(object))
+
+        // TODO: emit InterfacesAdded signal
+    }
+
+    pub fn remove(&mut self, path: &str) -> Result<Object, Error> {
+        if !path.starts_with("/") {
+            return Err(Error::InvalidPath(path.to_owned()));
+        }
+
+        let top_cursor = ObjectTreeCursor::new(self);
+
+        path.split("/").skip(1).fold(Ok(top_cursor), |res_cursor, component| {
+            res_cursor.and_then(|cursor| {
+                if component.is_empty() {
+                    return Err(Error::InvalidPath(path.to_owned()));
+                }
+
+                cursor.find(component)
+                      .ok_or(Error::NoSuchPath(path.to_owned()))
+            })
+        }).and_then(|cursor| {
+            cursor.remove(&path)
+                  .ok_or(Error::NoSuchPath(path.to_owned()))
+        })
+    }
+}
+
 /// A representation of a collection of objects which implement an interface.
 pub struct Server {
     conn: Rc<Connection>,
     name: String,
     can_handle: bool,
 
-    // TODO: store children information
-    objects: BTreeMap<String, Object>,
+    objects: ObjectTree,
     signals: SignalHandlerMap,
     namespace_signals: SignalHandlerMap,
 }
@@ -43,7 +178,7 @@ impl Server {
             name: name.to_owned(),
             can_handle: false,
 
-            objects: BTreeMap::new(),
+            objects: ObjectTree::new(),
             signals: SignalHandlerMap::new(),
             namespace_signals: SignalHandlerMap::new(),
         })
@@ -62,7 +197,7 @@ impl Server {
             name: name.to_owned(),
             can_handle: true,
 
-            objects: BTreeMap::new(),
+            objects: ObjectTree::new(),
             signals: SignalHandlerMap::new(),
             namespace_signals: SignalHandlerMap::new(),
         })
@@ -79,23 +214,9 @@ impl Server {
             return Err(Error::NoServerName);
         }
 
-        // TODO: Validate the path is valid.
+        self.objects.insert(path.to_owned(), ifaces)
+            .map(|_| self)
 
-        match self.objects.entry(path.to_owned()) {
-            Entry::Vacant(v)    => {
-                // TODO: store this
-                let children = Rc::new(RefCell::new(vec![]));
-                let finalized_ifaces = try!(ifaces.finalize(&children));
-                let obj = try!(Object::new(path, finalized_ifaces));
-
-                // TODO: emit InterfacesAdded signal
-
-                v.insert(obj);
-
-                Ok(())
-            },
-            Entry::Occupied(_)  => Err(Error::PathAlreadyRegistered(path.to_owned())),
-        }.map(|_| self)
     }
 
     /// Remove an object from the server.
@@ -104,14 +225,14 @@ impl Server {
             return Err(Error::NoServerName);
         }
 
-        match self.objects.remove(path) {
-            Some(_) => {
+        self.objects.remove(path)
+            .map(|obj| {
+                let iface_dict = self.objects.iface_dict();
+
                 // TODO: emit InterfacesRemoved signal
 
-                Ok(self)
-            },
-            None    => Err(Error::NoSuchPath(path.to_owned())),
-        }
+                self
+            })
     }
 
     /// Connect a handler to a specific object's signal.
@@ -161,6 +282,7 @@ impl Server {
 
     fn _call_method<'b>(&self, m: &'b mut Message) -> Option<&'b mut Message> {
         let conn = self.conn.clone();
+
         self.objects.iter().fold(Some(m), |opt_m, (_, object)| {
             opt_m.and_then(|mut m| {
                 match object.handle_message(&conn, &mut m) {
