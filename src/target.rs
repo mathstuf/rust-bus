@@ -17,8 +17,8 @@ impl DBusTarget {
     }
 
     pub fn extract(m: &DBusMessage) -> Option<DBusTarget> {
-        m.headers().map(|(_, interface, object, method)| {
-            DBusTarget::new(interface, object, method)
+        m.signal_headers().map(|hdrs| {
+            DBusTarget::new(hdrs.interface, hdrs.object, hdrs.method)
         })
     }
 
