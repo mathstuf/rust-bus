@@ -1,7 +1,10 @@
+extern crate machine_id;
+use self::machine_id::MachineId;
+
 use super::connection::DBusConnection;
 use super::error::DBusError;
 use super::message::DBusMessage;
-use super::value::{DBusSignature, DBusValue};
+use super::value::{DBusBasicValue, DBusSignature, DBusValue};
 
 use std::cell::RefCell;
 use std::collections::btree_map::{BTreeMap, Entry};
@@ -248,7 +251,22 @@ impl DBusInterfaceMap {
         }.map(|_| self)
     }
 
+    fn ping() -> DBusMethodResult {
+        Ok(vec![])
+    }
+
+    fn get_machine_id() -> DBusMethodResult {
+        let mid = format!("{}", MachineId::get());
+        Ok(vec![DBusValue::BasicValue(DBusBasicValue::String(mid))])
+    }
+
     pub fn finalize(mut self) -> Result<DBusInterfaceMap, DBusError> {
+        self = try!(self.add_interface("org.freedesktop.DBus.Peer", DBusInterface::new()
+            .add_method("Ping", DBusMethod::new(|_| Self::ping()))
+            .add_method("GetMachineId", DBusMethod::new(|_| Self::get_machine_id())
+                .add_result(DBusArgument::new("machine_uuid", "s")))
+        ));
+
         // TODO: Add core interfaces.
 
         self.finalized = true;
