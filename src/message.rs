@@ -23,37 +23,37 @@ pub struct DBusSignalHeaders {
 }
 
 impl DBusMessage {
-    pub fn new(message: message::Message) -> DBusMessage {
+    pub fn new(message: message::Message) -> Self {
         DBusMessage {
             message: message,
         }
     }
 
-    pub fn new_method_call(dest: &str, path: &str, iface: &str, method: &str) -> DBusMessage {
+    pub fn new_method_call(dest: &str, path: &str, iface: &str, method: &str) -> Self {
         DBusMessage {
             message: message::create_method_call(dest, path, iface, method),
         }
     }
 
-    pub fn new_signal(path: &str, iface: &str, method: &str) -> DBusMessage {
+    pub fn new_signal(path: &str, iface: &str, method: &str) -> Self {
         DBusMessage {
             message: message::create_signal(path, iface, method),
         }
     }
 
-    pub fn error_message(&self, name: &str) -> DBusMessage {
+    pub fn error_message(&self, name: &str) -> Self {
         DBusMessage {
             message: message::create_error(name, self.message.serial),
         }
     }
 
-    pub fn return_message(&self) -> DBusMessage {
+    pub fn return_message(&self) -> Self {
         DBusMessage {
             message: message::create_method_return(self.message.serial),
         }
     }
 
-    pub fn add_argument(self, arg: &DBusMarshal) -> DBusMessage {
+    pub fn add_argument(self, arg: &DBusMarshal) -> Self {
         DBusMessage {
             message: self.message.add_arg(arg),
         }

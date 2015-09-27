@@ -7,7 +7,7 @@ pub struct DBusArguments {
 }
 
 impl DBusArguments {
-    pub fn new(msg: &DBusMessage) -> Result<DBusArguments, DBusErrorMessage> {
+    pub fn new(msg: &DBusMessage) -> Result<Self, DBusErrorMessage> {
         Ok(DBusArguments {
             values: try!(msg.values().ok().and_then(|x| x).ok_or(Self::invalid_arguments())),
         })

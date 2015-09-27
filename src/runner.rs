@@ -13,7 +13,7 @@ pub struct DBusRunner {
 }
 
 impl DBusRunner {
-    pub fn new(conn: DBusConnection) -> Result<DBusRunner, DBusError> {
+    pub fn new(conn: DBusConnection) -> Result<Self, DBusError> {
         Ok(DBusRunner {
             conn: Rc::new(conn),
 

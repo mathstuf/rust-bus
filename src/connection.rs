@@ -33,13 +33,13 @@ pub struct DBusMessages<'a> {
 }
 
 impl DBusConnection {
-    pub fn session_new() -> Result<DBusConnection, DBusError> {
+    pub fn session_new() -> Result<Self, DBusError> {
         Ok(DBusConnection {
             conn: try!(Connection::connect_session()),
         })
     }
 
-    pub fn system_new() -> Result<DBusConnection, DBusError> {
+    pub fn system_new() -> Result<Self, DBusError> {
         Ok(DBusConnection {
             conn: try!(Connection::connect_system()),
         })

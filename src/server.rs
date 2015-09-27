@@ -32,7 +32,7 @@ pub struct DBusServer {
 }
 
 impl DBusServer {
-    pub fn new_listener(conn: Rc<DBusConnection>, name: &str) -> Result<DBusServer, DBusError> {
+    pub fn new_listener(conn: Rc<DBusConnection>, name: &str) -> Result<Self, DBusError> {
         Ok(DBusServer {
             conn: conn,
             name: name.to_owned(),
@@ -44,7 +44,7 @@ impl DBusServer {
         })
     }
 
-    pub fn new(conn: Rc<DBusConnection>, name: &str) -> Result<DBusServer, DBusError> {
+    pub fn new(conn: Rc<DBusConnection>, name: &str) -> Result<Self, DBusError> {
         try!(conn.request_name(name, DBusRequestNameFlags::DoNotQueue));
 
         // TODO: add root object

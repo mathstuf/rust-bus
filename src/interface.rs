@@ -20,7 +20,7 @@ pub struct DBusArgument {
 }
 
 impl DBusArgument {
-    pub fn new(name: &str, sig: &str) -> DBusArgument {
+    pub fn new(name: &str, sig: &str) -> Self {
         DBusArgument {
             name: name.to_owned(),
             signature: sig.to_owned(),
@@ -35,7 +35,7 @@ pub struct DBusAnnotation {
 type DBusAnnotations = Vec<DBusAnnotation>;
 
 impl DBusAnnotation {
-    pub fn new(name: &str, value: &str) -> DBusAnnotation {
+    pub fn new(name: &str, value: &str) -> Self {
         DBusAnnotation {
             name: name.to_owned(),
             value: value.to_owned(),
@@ -49,7 +49,7 @@ pub struct DBusErrorMessage {
 }
 
 impl DBusErrorMessage {
-    pub fn new(name: &str, message: &str) -> DBusErrorMessage {
+    pub fn new(name: &str, message: &str) -> Self {
         DBusErrorMessage {
             name: name.to_owned(),
             message: message.to_owned(),
@@ -68,7 +68,7 @@ pub struct DBusMethod {
 }
 
 impl DBusMethod {
-    pub fn new<F>(cb: F) -> DBusMethod
+    pub fn new<F>(cb: F) -> Self
         where F: FnMut(&mut DBusMessage) -> DBusMethodResult + 'static {
         DBusMethod {
             in_args: vec![],
@@ -78,19 +78,19 @@ impl DBusMethod {
         }
     }
 
-    pub fn add_argument(mut self, arg: DBusArgument) -> DBusMethod {
+    pub fn add_argument(mut self, arg: DBusArgument) -> Self {
         self.in_args.push(arg);
 
         self
     }
 
-    pub fn add_result(mut self, arg: DBusArgument) -> DBusMethod {
+    pub fn add_result(mut self, arg: DBusArgument) -> Self {
         self.out_args.push(arg);
 
         self
     }
 
-    pub fn annotate(mut self, ann: DBusAnnotation) -> DBusMethod {
+    pub fn annotate(mut self, ann: DBusAnnotation) -> Self {
         self.anns.push(ann);
 
         self
@@ -126,7 +126,7 @@ pub struct DBusProperty {
 }
 
 impl DBusProperty {
-    fn new(sig: DBusSignature, access: PropertyAccess) -> DBusProperty {
+    fn new(sig: DBusSignature, access: PropertyAccess) -> Self {
         DBusProperty {
             signature: sig,
             access: access,
@@ -134,19 +134,19 @@ impl DBusProperty {
         }
     }
 
-    pub fn new_ro(sig: DBusSignature, access: Box<DBusPropertyReadHandler>) -> DBusProperty {
-        DBusProperty::new(sig, PropertyAccess::RO(access))
+    pub fn new_ro(sig: DBusSignature, access: Box<DBusPropertyReadHandler>) -> Self {
+        Self::new(sig, PropertyAccess::RO(access))
     }
 
-    pub fn new_rw(sig: DBusSignature, access: Box<DBusPropertyReadWriteHandler>) -> DBusProperty {
-        DBusProperty::new(sig, PropertyAccess::RW(access))
+    pub fn new_rw(sig: DBusSignature, access: Box<DBusPropertyReadWriteHandler>) -> Self {
+        Self::new(sig, PropertyAccess::RW(access))
     }
 
-    pub fn new_wo(sig: DBusSignature, access: Box<DBusPropertyWriteHandler>) -> DBusProperty {
-        DBusProperty::new(sig, PropertyAccess::WO(access))
+    pub fn new_wo(sig: DBusSignature, access: Box<DBusPropertyWriteHandler>) -> Self {
+        Self::new(sig, PropertyAccess::WO(access))
     }
 
-    pub fn annotate(mut self, ann: DBusAnnotation) -> DBusProperty {
+    pub fn annotate(mut self, ann: DBusAnnotation) -> Self {
         self.anns.push(ann);
 
         self
@@ -159,20 +159,20 @@ pub struct DBusSignal {
 }
 
 impl DBusSignal {
-    pub fn new() -> DBusSignal {
+    pub fn new() -> Self {
         DBusSignal {
             args: vec![],
             anns: vec![],
         }
     }
 
-    pub fn add_argument(mut self, arg: DBusArgument) -> DBusSignal {
+    pub fn add_argument(mut self, arg: DBusArgument) -> Self {
         self.args.push(arg);
 
         self
     }
 
-    pub fn annotate(mut self, ann: DBusAnnotation) -> DBusSignal {
+    pub fn annotate(mut self, ann: DBusAnnotation) -> Self {
         self.anns.push(ann);
 
         self
@@ -186,7 +186,7 @@ pub struct DBusInterface {
 }
 
 impl DBusInterface {
-    pub fn new() -> DBusInterface {
+    pub fn new() -> Self {
         DBusInterface {
             methods: DBusMap::new(),
             properties: DBusMap::new(),
@@ -194,13 +194,13 @@ impl DBusInterface {
         }
     }
 
-    pub fn add_method(mut self, name: &str, method: DBusMethod) -> DBusInterface {
+    pub fn add_method(mut self, name: &str, method: DBusMethod) -> Self {
         self.methods.insert(name.to_owned(), method);
 
         self
     }
 
-    pub fn add_property(mut self, name: &str, property: DBusProperty) -> DBusInterface {
+    pub fn add_property(mut self, name: &str, property: DBusProperty) -> Self {
         self.properties.insert(name.to_owned(), property);
 
         self
@@ -210,7 +210,7 @@ impl DBusInterface {
         self.properties.get(name)
     }
 
-    pub fn add_signal(mut self, name: &str, signal: DBusSignal) -> DBusInterface {
+    pub fn add_signal(mut self, name: &str, signal: DBusSignal) -> Self {
         self.signals.insert(name.to_owned(), signal);
 
         self
@@ -462,7 +462,7 @@ pub struct DBusInterfaceMap {
 }
 
 impl DBusInterfaceMapBuilder {
-    pub fn new() -> DBusInterfaceMapBuilder {
+    pub fn new() -> Self {
         DBusInterfaceMapBuilder {
             map: DBusMap::new(),
         }
@@ -481,7 +481,7 @@ impl DBusInterfaceMapBuilder {
 }
 
 impl DBusInterfaceMap {
-    pub fn new(builder: DBusInterfaceMapBuilder, children: DBusChildrenList) -> Result<DBusInterfaceMap, DBusError> {
+    pub fn new(builder: DBusInterfaceMapBuilder, children: DBusChildrenList) -> Result<Self, DBusError> {
         let this = DBusInterfaceMap {
             map: Rc::new(RefCell::new(builder.map)),
         };
