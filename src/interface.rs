@@ -352,6 +352,106 @@ impl DBusPropertyInterface {
     }
 }
 
+struct DBusIntrospectableInterface;
+
+impl DBusIntrospectableInterface {
+    fn introspect(map: &InterfaceMap, _: &mut DBusMessage) -> DBusMethodResult {
+        let xml = format!(concat!(
+            r#"<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"\n"#,
+            r#" "http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">\n"#,
+            r#"<node>\n"#,
+            r#"{}"#,
+            // TODO: get child objects into here.
+            r#"</node>\n"#),
+            Self::_to_string_map(&*map.borrow(), |k, v| Self::_introspect_interface(" ", k, v)));
+        Ok(vec![DBusValue::BasicValue(DBusBasicValue::String(xml))])
+    }
+
+    fn _to_string_map<K, V, F>(map: &BTreeMap<K, V>, f: F) -> String
+        where F: Fn(&K, &V) -> String {
+        map.iter().fold("".to_owned(), |p, (k, v)| {
+            format!("{}{}", p, f(k, v))
+        })
+    }
+
+    fn _to_string_list<T, F>(map: &Vec<T>, f: F) -> String
+        where F: Fn(&T) -> String {
+        map.iter().fold("".to_owned(), |p, t| {
+            format!("{}{}", p, f(t))
+        })
+    }
+
+    fn _introspect_annotation(indent: &str, ann: &DBusAnnotation) -> String {
+        format!(r#"{}<annotation name="{}" value="{}" />\n"#,
+            indent,
+            ann.name,
+            ann.value)
+    }
+
+    fn _introspect_arg(indent: &str, direction: &str, arg: &DBusArgument) -> String {
+        format!(r#"{}<arg name="{}" type="{}" direction="{}" />\n"#,
+            indent,
+            arg.name,
+            arg.signature,
+            direction)
+    }
+
+    fn _introspect_property(indent: &str, name: &String, prop: &DBusProperty) -> String {
+        let new_indent = format!("{} ", indent);
+        let access =
+            match prop.access {
+                PropertyAccess::RO(_) => "read",
+                PropertyAccess::RW(_) => "readwrite",
+                PropertyAccess::WO(_) => "write",
+            };
+        let sig = match prop.signature { DBusSignature(ref s) => s };
+        format!(r#"{}<property name="" type="{}" access="{}">\n{}{}</property>\n"#,
+            name,
+            sig,
+            access,
+            Self::_to_string_list(&prop.anns, |t| Self::_introspect_annotation(&new_indent, t)),
+            indent)
+    }
+
+    fn _introspect_method(indent: &str, name: &String, method: &DBusMethod) -> String {
+        let new_indent = format!("{} ", indent);
+        format!(r#"{}<method name="">\n{}{}{}{}</method>\n"#,
+            name,
+            Self::_to_string_list(&method.in_args, |t| Self::_introspect_arg(&new_indent, "in", t)),
+            Self::_to_string_list(&method.out_args, |t| Self::_introspect_arg(&new_indent, "out", t)),
+            Self::_to_string_list(&method.anns, |t| Self::_introspect_annotation(&new_indent, t)),
+            indent)
+    }
+
+    fn _introspect_signal(indent: &str, name: &String, signal: &DBusSignal) -> String {
+        let new_indent = format!("{} ", indent);
+        format!(r#"{}<signal name="">\n{}{}{}</signal>\n"#,
+            name,
+            Self::_to_string_list(&signal.args, |t| Self::_introspect_arg(&new_indent, "out", t)),
+            Self::_to_string_list(&signal.anns, |t| Self::_introspect_annotation(&new_indent, t)),
+            indent)
+    }
+
+    fn _introspect_interface(indent: &str, name: &String, iface: &DBusInterface) -> String {
+        let new_indent = format!("{} ", indent);
+        format!(r#"{}<interface name="{}">\n{}{}{}{}</interface>\n"#,
+            indent,
+            name,
+            Self::_to_string_map(&iface.properties, |k, v| Self::_introspect_property(&new_indent, k, v)),
+            Self::_to_string_map(&iface.methods, |k, v| Self::_introspect_method(&new_indent, k, v)),
+            Self::_to_string_map(&iface.signals, |k, v| Self::_introspect_signal(&new_indent, k, v)),
+            indent)
+    }
+
+    pub fn new(map: InterfaceMap) -> DBusInterface {
+        let introspect_map = map.clone();
+
+        DBusInterface::new()
+            .add_method("Introspect", DBusMethod::new(move |m| Self::introspect(&introspect_map, m))
+                .add_result(DBusArgument::new("xml_data", "s")))
+    }
+}
+
 impl DBusInterfaceMap {
     pub fn new() -> DBusInterfaceMap {
         DBusInterfaceMap {
@@ -386,6 +486,9 @@ impl DBusInterfaceMap {
 
         let property_map = self.map.clone();
         self = try!(self.add_interface("org.freedesktop.DBus.Properties", DBusPropertyInterface::new(property_map)));
+
+        let introspectable_map = self.map.clone();
+        self = try!(self.add_interface("org.freedesktop.DBus.Introspectable", DBusIntrospectableInterface::new(introspectable_map)));
 
         self.finalized = true;
         Ok(self)
