@@ -4,6 +4,7 @@ use self::dbus_bytestream::message;
 extern crate dbus_serialize;
 use self::dbus_serialize::types::Variant;
 
+use super::error::DBusError;
 use super::value::{DBusBasicValue, DBusMarshal, DBusValue};
 
 #[derive(Debug)]
@@ -93,6 +94,10 @@ impl DBusMessage {
 
     pub fn member(&self) -> Option<String> {
         Self::_get_header_string(&self.message, message::HEADER_FIELD_MEMBER)
+    }
+
+    pub fn values(&self) -> Result<Option<Vec<DBusValue>>, DBusError> {
+        Ok(try!(self.message.get_body()))
     }
 
     pub fn call_headers(&self) -> Option<DBusCallHeaders> {

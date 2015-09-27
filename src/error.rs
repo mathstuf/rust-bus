@@ -1,5 +1,6 @@
 extern crate dbus_bytestream;
 use self::dbus_bytestream::connection;
+use self::dbus_bytestream::demarshal;
 
 use std::error::Error;
 use std::fmt::{Display, Formatter, Result};
@@ -14,6 +15,7 @@ pub enum DBusError {
     NoSuchServer(String),
     PathAlreadyRegistered(String),
     NoSuchPath(String),
+    ExtractArguments(demarshal::DemarshalError),
     InterfaceAlreadyRegistered(String),
     InterfaceMapFinalized(String),
 }
@@ -28,6 +30,7 @@ impl Display for DBusError {
             DBusError::NoSuchServer(ref server)             => write!(f, "no such server: {}", server),
             DBusError::PathAlreadyRegistered(ref path)      => write!(f, "path already registered: {}", path),
             DBusError::NoSuchPath(ref path)                 => write!(f, "no such path: {}", path),
+            DBusError::ExtractArguments(ref dmerr)          => write!(f, "failed to extract arguments: {}", dmerr),
             DBusError::InterfaceAlreadyRegistered(ref name) => write!(f, "interface already registered: {}", name),
             DBusError::InterfaceMapFinalized(ref name)      => write!(f, "interface has been finalized; cannot add {}", name),
         }
@@ -50,5 +53,11 @@ impl Error for DBusError {
 impl From<connection::Error> for DBusError {
     fn from(error: connection::Error) -> Self {
         DBusError::ErrorMessage(error)
+    }
+}
+
+impl From<demarshal::DemarshalError> for DBusError {
+    fn from(error: demarshal::DemarshalError) -> Self {
+        DBusError::ExtractArguments(error)
     }
 }
