@@ -1,4 +1,7 @@
-extern crate dbus;
+extern crate dbus_bytestream;
+use self::dbus_bytestream::message;
 
-pub use self::dbus::MessageType as DBusMessageType;
-pub use self::dbus::Message as DBusMessage;
+#[derive(Debug)]
+pub struct DBusMessage {
+    message: message::Message,
+}
