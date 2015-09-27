@@ -282,21 +282,22 @@ impl DBusServer {
 
     fn _call_method<'b>(&mut self, m: &'b mut DBusMessage) -> Option<&'b mut DBusMessage> {
         let conn = self.conn.clone();
-        unimplemented!()
-        /*
-        self.objects.iter_mut().fold(Some(m), |opt_m, (_, object)| {
-            opt_m.and_then(|mut m| {
-                match object.handle_message(&conn, &mut m) {
-                    None          => Some(m),
-                    Some(Ok(()))  => None,
-                    Some(Err(())) => {
-                        println!("failed to send a reply for {:?}", m);
-                        None
-                    },
-                }
+        let opt_path = m.path();
+
+        opt_path.and_then(|path| {
+            self.objects.borrow_mut().find_object(&path).and_then(|mut tree| {
+                tree.object.as_mut().and_then(|mut obj| {
+                    match obj.handle_message(&conn, m) {
+                        None          => Some(m),
+                        Some(Ok(()))  => None,
+                        Some(Err(())) => {
+                            println!("failed to send a reply for {:?}", m);
+                            None
+                        },
+                    }
+                })
             })
         })
-        */
     }
 
     fn _match_signal<'b>(&mut self, m: &'b mut DBusMessage) -> &'b mut DBusMessage {
