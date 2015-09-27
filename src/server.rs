@@ -5,6 +5,7 @@ use super::message::DBusMessage;
 use super::object::DBusObject;
 use super::target::DBusTarget;
 
+use std::cell::RefCell;
 use std::collections::btree_map::{BTreeMap, Entry};
 use std::rc::Rc;
 
@@ -67,7 +68,9 @@ impl DBusServer {
 
         match self.objects.entry(path.to_owned()) {
             Entry::Vacant(v)    => {
-                let obj = try!(DBusObject::new(path, iface_map));
+                // TODO: store this
+                let children = Rc::new(RefCell::new(vec![]));
+                let obj = try!(DBusObject::new(path, iface_map, children));
 
                 v.insert(obj);
 

@@ -265,6 +265,7 @@ impl DBusInterface {
 }
 
 type InterfaceMap = Rc<RefCell<DBusMap<DBusInterface>>>;
+pub type DBusChildrenList = Rc<RefCell<Vec<String>>>;
 
 fn require_interface<'a>(map: &'a Ref<'a, DBusMap<DBusInterface>>, name: &str) -> Result<&'a DBusInterface, DBusErrorMessage> {
     map.get(name).ok_or(
@@ -355,15 +356,18 @@ impl DBusPropertyInterface {
 struct DBusIntrospectableInterface;
 
 impl DBusIntrospectableInterface {
-    fn introspect(map: &InterfaceMap, _: &mut DBusMessage) -> DBusMethodResult {
+    fn introspect(map: &InterfaceMap, children: &DBusChildrenList, _: &mut DBusMessage) -> DBusMethodResult {
         let xml = format!(concat!(
             r#"<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"\n"#,
             r#" "http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">\n"#,
             r#"<node>\n"#,
-            r#"{}"#,
-            // TODO: get child objects into here.
+            r#"{}"#, // interface
+            r#"{}"#, // children
             r#"</node>\n"#),
-            Self::_to_string_map(&*map.borrow(), |k, v| Self::_introspect_interface(" ", k, v)));
+            Self::_to_string_map(&*map.borrow(), |k, v| Self::_introspect_interface(" ", k, v)),
+            children.borrow().iter().fold("".to_owned(), |p, name| {
+                format!(r#"{} <node name="{}" />"#, p, name)
+            }));
         Ok(vec![DBusValue::BasicValue(DBusBasicValue::String(xml))])
     }
 
@@ -443,11 +447,12 @@ impl DBusIntrospectableInterface {
             indent)
     }
 
-    pub fn new(map: InterfaceMap) -> DBusInterface {
+    pub fn new(map: InterfaceMap, children: DBusChildrenList) -> DBusInterface {
         let introspect_map = map.clone();
+        let children = children.clone();
 
         DBusInterface::new()
-            .add_method("Introspect", DBusMethod::new(move |m| Self::introspect(&introspect_map, m))
+            .add_method("Introspect", DBusMethod::new(move |m| Self::introspect(&introspect_map, &children, m))
                 .add_result(DBusArgument::new("xml_data", "s")))
     }
 }
@@ -481,7 +486,7 @@ impl DBusInterfaceMap {
         }.map(|_| self)
     }
 
-    pub fn finalize(mut self) -> Result<DBusInterfaceMap, DBusError> {
+    pub fn finalize(mut self, children: DBusChildrenList) -> Result<DBusInterfaceMap, DBusError> {
         self = try!(Ok(self)
                 .and_then(|this| {
                     this.add_interface("org.freedesktop.DBus.Peer", DBusPeerInterface::new())
@@ -490,7 +495,7 @@ impl DBusInterfaceMap {
                     this.add_interface("org.freedesktop.DBus.Properties", DBusPropertyInterface::new(property_map))
                 }).and_then(|this| {
                     let introspectable_map = this.map.clone();
-                    this.add_interface("org.freedesktop.DBus.Introspectable", DBusIntrospectableInterface::new(introspectable_map))
+                    this.add_interface("org.freedesktop.DBus.Introspectable", DBusIntrospectableInterface::new(introspectable_map, children))
                 }));
 
         self.finalized = true;

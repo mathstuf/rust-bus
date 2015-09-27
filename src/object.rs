@@ -1,6 +1,6 @@
 use super::connection::DBusConnection;
 use super::error::DBusError;
-use super::interface::DBusInterfaceMap;
+use super::interface::{DBusChildrenList, DBusInterfaceMap};
 use super::message::DBusMessage;
 
 pub struct DBusObject {
@@ -10,10 +10,10 @@ pub struct DBusObject {
 }
 
 impl DBusObject {
-    pub fn new(path: &str, interfaces: DBusInterfaceMap) -> Result<DBusObject, DBusError> {
+    pub fn new(path: &str, interfaces: DBusInterfaceMap, children: DBusChildrenList) -> Result<DBusObject, DBusError> {
         Ok(DBusObject {
             path: path.to_owned(),
-            interfaces: try!(interfaces.finalize()),
+            interfaces: try!(interfaces.finalize(children)),
         })
     }
 
