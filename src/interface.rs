@@ -82,6 +82,13 @@ pub struct DBusInterfaceMap {
 }
 
 impl DBusInterfaceMap {
+    pub fn new() -> DBusInterfaceMap {
+        DBusInterfaceMap {
+            map: Rc::new(RefCell::new(DBusMap::new())),
+            finalized: false,
+        }
+    }
+
     // Marked as mut for intent; Rc<> doesn't require it though.
     #[allow(unused_mut)]
     pub fn add_interface(mut self, name: &str, iface: DBusInterface) -> Result<DBusInterfaceMap, DBusError> {
