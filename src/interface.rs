@@ -4,7 +4,7 @@ use super::message::DBusMessage;
 use super::value::{DBusSignature, DBusValue};
 
 use std::cell::RefCell;
-use std::collections::btree_map::BTreeMap;
+use std::collections::btree_map::{BTreeMap, Entry};
 use std::rc::Rc;
 
 type DBusMap<T> = BTreeMap<String, T>;
@@ -82,6 +82,27 @@ pub struct DBusInterfaceMap {
 }
 
 impl DBusInterfaceMap {
+    // Marked as mut for intent; Rc<> doesn't require it though.
+    #[allow(unused_mut)]
+    pub fn add_interface(mut self, name: &str, iface: DBusInterface) -> Result<DBusInterfaceMap, DBusError> {
+        if self.finalized {
+            return Err(DBusError::InterfaceMapFinalized(name.to_owned()));
+        }
+
+        {
+            let mut map = self.map.borrow_mut();
+
+            match map.entry(name.to_owned()) {
+                Entry::Vacant(v)    => {
+                    v.insert(iface);
+
+                    Ok(())
+                },
+                Entry::Occupied(_)  => Err(DBusError::InterfaceAlreadyRegistered(name.to_owned())),
+            }
+        }.map(|_| self)
+    }
+
     pub fn finalize(mut self) -> Result<DBusInterfaceMap, DBusError> {
         // TODO: Add core interfaces.
 
