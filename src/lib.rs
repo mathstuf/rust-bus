@@ -21,6 +21,7 @@ pub use interface::DBusAnnotation;
 pub use interface::DBusArgument;
 pub use interface::DBusInterface;
 pub use interface::DBusInterfaceMap;
+pub use interface::DBusInterfaceMapBuilder;
 pub use interface::DBusMethod;
 pub use interface::DBusMethodHandler;
 pub use interface::DBusMethodResult;
