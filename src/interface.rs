@@ -69,6 +69,13 @@ pub struct DBusMethod {
     anns: DBusAnnotations,
 }
 
+fn _get_signature(args: &Vec<DBusArgument>) -> String {
+    args.iter().fold("".to_owned(), |mut s, a| {
+        s.push_str(&a.signature);
+        s
+    })
+}
+
 impl DBusMethod {
     pub fn new<F>(cb: F) -> Self
         where F: FnMut(&mut DBusMessage) -> DBusMethodResult + 'static {
@@ -96,6 +103,14 @@ impl DBusMethod {
         self.anns.push(ann);
 
         self
+    }
+
+    pub fn signature(&self) -> String {
+        _get_signature(&self.in_args)
+    }
+
+    pub fn result_signature(&self) -> String {
+        _get_signature(&self.out_args)
     }
 }
 
@@ -227,7 +242,6 @@ impl DBusInterface {
     pub fn get_property_value(&self, name: &str) -> DBusMethodResult {
         self._require_property(name).and_then(|prop| {
             match prop.access {
-                // TODO: Verify that the signature matches the return.
                 PropertyAccess::RO(ref ro) => ro.get().map(|v| vec![v]),
                 PropertyAccess::RW(ref rw) => rw.get().map(|v| vec![v]),
                 PropertyAccess::WO(_) =>
@@ -253,7 +267,6 @@ impl DBusInterface {
         DBusDictionary::new(self.properties.iter().map(|(k, v)| {
             match v.access {
                 // TODO: Message that failures occurred?
-                // TODO: Verify that the signature matches the return.
                 PropertyAccess::RO(ref ro) => ro.get().ok(),
                 PropertyAccess::RW(ref rw) => rw.get().ok(),
                 PropertyAccess::WO(_)      => None,
@@ -519,18 +532,31 @@ impl DBusInterfaceMap {
             let method_name = hdrs.method;
             let reply = if let Some(iface) = self.map.borrow_mut().get_mut(&iface_name) {
                 if let Some(method) = iface.methods.get_mut(&method_name) {
-                    // TODO: Verify input argument signature.
+                    let expect_sig = method.signature();
+                    let actual_sig = msg.signature();
+                    if actual_sig != expect_sig {
+                        msg.error_message("org.freedesktop.DBus.Error.InvalidArgs")
+                           .add_argument(&format!("invalid arguments: expected '{}'; received '{}'",
+                                         expect_sig, actual_sig))
+                    } else {
+                        match (method.cb)(msg) {
+                            Ok(vals) => {
+                                let ret = vals.iter().fold(msg.return_message(), |msg, val| {
+                                    msg.add_argument(val)
+                                });
 
-                    match (method.cb)(msg) {
-                        Ok(vals) => {
-                            // TODO: Verify that the signature matches the return.
+                                let expect_ret_sig = method.result_signature();
+                                let actual_ret_sig = ret.signature();
+                                if actual_sig != expect_sig {
+                                    warn!("invalid return signature: expected '{}'; received '{}'",
+                                          expect_ret_sig, actual_ret_sig);
+                                }
 
-                            vals.iter().fold(msg.return_message(), |msg, val| {
-                                msg.add_argument(val)
-                            })
-                        },
-                        Err(err) => msg.error_message(&err.name)
-                                       .add_argument(&err.message),
+                                ret
+                            },
+                            Err(err) => msg.error_message(&err.name)
+                                           .add_argument(&err.message),
+                        }
                     }
                 } else {
                     msg.error_message("org.freedesktop.DBus.Error.UnknownMethod")

@@ -1,3 +1,5 @@
+extern crate log;
+
 extern crate dbus_bytestream;
 use self::dbus_bytestream::message;
 
@@ -98,6 +100,23 @@ impl DBusMessage {
 
     pub fn values(&self) -> Result<Option<Vec<DBusValue>>, DBusError> {
         Ok(try!(self.message.get_body()))
+    }
+
+    pub fn signature(&self) -> String {
+        let opt_values = match self.values() {
+            Ok(v)    => v,
+            Err(err) => {
+                warn!("failed to extract values from the message: {}", err);
+                None
+            },
+        };
+
+        opt_values.map(|values| {
+            values.iter().fold("".to_owned(), |mut s, v| {
+                s.push_str(v.get_signature());
+                s
+            })
+        }).unwrap_or("".to_owned())
     }
 
     pub fn call_headers(&self) -> Option<DBusCallHeaders> {
