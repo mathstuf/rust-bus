@@ -531,6 +531,12 @@ impl DBusInterfaceMap {
         }.map(|_| self)
     }
 
+    pub fn get_interfaces_and_properties(&self) -> DBusDictionary {
+        DBusDictionary::new(self.map.borrow().iter().map(|(k, v)| {
+            (DBusBasicValue::String(k.clone()), DBusValue::Dictionary(v.get_property_map()))
+        }).collect::<HashMap<DBusBasicValue, DBusValue>>())
+    }
+
     pub fn handle(&self, conn: &DBusConnection, msg: &mut DBusMessage) -> Option<Result<(), ()>> {
         msg.call_headers().map(|hdrs| {
             let iface_name = hdrs.interface;
