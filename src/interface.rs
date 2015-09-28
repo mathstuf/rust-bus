@@ -659,6 +659,15 @@ impl Interfaces {
         expect_sig == actual_sig
     }
 
+    /// Return a dictionary of interfaces and properties on the interface.
+    ///
+    /// This is meant to be used by an ObjectManager interface.
+    pub fn get_interfaces_and_properties(&self) -> Dictionary {
+        Dictionary::new(self.map.borrow().iter().map(|(k, v)| {
+            (BasicValue::String(k.clone()), Value::Dictionary(v.get_property_map()))
+        }).collect::<HashMap<BasicValue, Value>>())
+    }
+
     /// Parse a `Message` and call the appropriate method (if applicable).
     ///
     /// Returns `None` if the method doesn't match, otherwise a a `Result` indicating whether the
