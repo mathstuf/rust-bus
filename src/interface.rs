@@ -60,7 +60,7 @@ impl DBusErrorMessage {
 }
 
 pub type DBusMethodResult = Result<Vec<DBusValue>, DBusErrorMessage>;
-pub type DBusMethodHandler = Box<FnMut(&mut DBusMessage) -> DBusMethodResult>;
+pub type DBusMethodHandler = Rc<RefCell<FnMut(&mut DBusMessage) -> DBusMethodResult>>;
 
 pub struct DBusMethod {
     in_args: Vec<DBusArgument>,
@@ -82,7 +82,7 @@ impl DBusMethod {
         DBusMethod {
             in_args: vec![],
             out_args: vec![],
-            cb: Box::new(cb),
+            cb: Rc::new(RefCell::new(cb)),
             anns: vec![],
         }
     }
@@ -111,6 +111,11 @@ impl DBusMethod {
 
     pub fn result_signature(&self) -> String {
         _get_signature(&self.out_args)
+    }
+
+    pub fn call(&self, msg: &mut DBusMessage) -> DBusMethodResult {
+        let mut f = self.cb.borrow_mut();
+        (&mut *f)(msg)
     }
 }
 
@@ -530,8 +535,8 @@ impl DBusInterfaceMap {
         msg.call_headers().map(|hdrs| {
             let iface_name = hdrs.interface;
             let method_name = hdrs.method;
-            let reply = if let Some(iface) = self.map.borrow_mut().get_mut(&iface_name) {
-                if let Some(method) = iface.methods.get_mut(&method_name) {
+            let reply = if let Some(iface) = self.map.borrow().get(&iface_name) {
+                if let Some(method) = iface.methods.get(&method_name) {
                     let expect_sig = method.signature();
                     let actual_sig = msg.signature();
                     if actual_sig != expect_sig {
@@ -539,7 +544,7 @@ impl DBusInterfaceMap {
                            .add_argument(&format!("invalid arguments: expected '{}'; received '{}'",
                                          expect_sig, actual_sig))
                     } else {
-                        match (method.cb)(msg) {
+                        match method.call(msg) {
                             Ok(vals) => {
                                 let ret = vals.iter().fold(msg.return_message(), |msg, val| {
                                     msg.add_argument(val)
