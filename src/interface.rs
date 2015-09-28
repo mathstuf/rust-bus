@@ -271,7 +271,6 @@ impl DBusInterface {
     pub fn get_property_map(&self) -> DBusDictionary {
         DBusDictionary::new(self.properties.iter().map(|(k, v)| {
             match v.access {
-                // TODO: Message that failures occurred?
                 PropertyAccess::RO(ref ro) => ro.get().ok(),
                 PropertyAccess::RW(ref rw) => rw.get().ok(),
                 PropertyAccess::WO(_)      => None,
