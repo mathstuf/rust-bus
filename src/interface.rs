@@ -559,8 +559,8 @@ impl DBusInterfaceMap {
                                 let expect_ret_sig = method.result_signature();
                                 let actual_ret_sig = ret.signature();
                                 if actual_sig != expect_sig {
-                                    warn!("invalid return signature: expected '{}'; received '{}'",
-                                          expect_ret_sig, actual_ret_sig);
+                                    error!("invalid return signature: expected '{}'; received '{}'",
+                                           expect_ret_sig, actual_ret_sig);
                                 }
 
                                 ret
@@ -581,7 +581,7 @@ impl DBusInterfaceMap {
             conn.send(reply)
                 .map(|_| ())
                 .map_err(|err| {
-                    warn!("failed to send error reply: {}", err)
+                    error!("failed to send error reply: {}", err)
                 })
         })
     }

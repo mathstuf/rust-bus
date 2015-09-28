@@ -302,7 +302,7 @@ impl DBusServer {
                 let errmsg = m.error_message("org.freedesktop.DBus.Error.UnknownObject")
                               .add_argument(&format!("unknown object: {}", path));
                 if let Err(err) = conn.send(errmsg) {
-                    warn!("failed to send error reply: {}", err)
+                    error!("failed to send error reply: {}", err)
                 }
                 None
             }
