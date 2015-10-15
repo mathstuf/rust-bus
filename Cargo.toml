@@ -2,7 +2,7 @@
 name = "rust-bus"
 version = "0.12.0"
 authors = ["Ben Boeckel <mathstuf@gmail.com>"]
-license = "BSD"
+license = "BSD-3-Clause"
 description = """
 Library for exposing a D-Bus interface.
 """
