@@ -1,3 +1,4 @@
+mod arguments;
 mod connection;
 mod error;
 mod interface;
