@@ -1,7 +1,10 @@
 extern crate dbus_bytestream;
 use self::dbus_bytestream::message;
 
-use super::value::DBusMarshal;
+extern crate dbus_serialize;
+use self::dbus_serialize::types::Variant;
+
+use super::value::{DBusBasicValue, DBusMarshal, DBusValue};
 
 #[derive(Debug)]
 pub struct DBusMessage {
@@ -57,6 +60,35 @@ impl DBusMessage {
 
     pub fn should_handle(&self) -> bool {
         self.is_signal() || self.is_method_call()
+    }
+
+    fn _extract_string(v: &Variant) -> Option<String> {
+        if let DBusValue::BasicValue(DBusBasicValue::String(ref s)) = *v.object {
+            Some(s.clone())
+        } else {
+            None
+        }
+    }
+
+    fn _get_header_string(message: &message::Message, header: u8) -> Option<String> {
+        message.get_header(header)
+            .and_then(Self::_extract_string)
+    }
+
+    pub fn interface(&self) -> Option<String> {
+        Self::_get_header_string(&self.message, message::HEADER_FIELD_INTERFACE)
+    }
+
+    pub fn path(&self) -> Option<String> {
+        Self::_get_header_string(&self.message, message::HEADER_FIELD_PATH)
+    }
+
+    pub fn member(&self) -> Option<String> {
+        Self::_get_header_string(&self.message, message::HEADER_FIELD_MEMBER)
+    }
+
+    pub fn values(&self) -> Option<Vec<DBusValue>> {
+        unimplemented!()
     }
 
     pub fn headers(&self) -> Option<DBusHeaders> {

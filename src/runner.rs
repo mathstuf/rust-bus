@@ -1,3 +1,5 @@
+extern crate dbus_bytestream;
+
 use super::connection::DBusConnection;
 use super::error::DBusError;
 use super::server::DBusServer;
@@ -53,6 +55,8 @@ impl DBusRunner {
         let servers = &mut self.servers;
 
         self.conn.iter().fold((), |_, mut message| {
+            // TODO: handle the Ping interface.
+
             if message.is_signal() {
                 for listener in listeners.iter_mut() {
                     listener.handle_message(&mut message);

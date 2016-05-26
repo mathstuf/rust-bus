@@ -1,3 +1,5 @@
+extern crate bitflags;
+
 extern crate dbus_bytestream;
 use self::dbus_bytestream::connection::Connection;
 
