@@ -2,14 +2,14 @@ extern crate log;
 
 use super::connection::{DBusConnection, DBusReleaseNameReply, DBusRequestNameFlags};
 use super::error::DBusError;
-use super::interface::{DBusMap, DBusChildrenList, DBusInterface, DBusInterfaceMap, DBusInterfaceMapBuilder};
+use super::interface::{DBusArgument, DBusMap, DBusChildrenList, DBusInterface, DBusInterfaceMap, DBusInterfaceMapBuilder, DBusMethod, DBusMethodResult};
 use super::message::DBusMessage;
 use super::object::DBusObject;
 use super::target::DBusTarget;
 
-use std::cell::RefCell;
+use std::cell::{RefCell, RefMut};
 use std::collections::btree_map::{BTreeMap, Entry};
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 pub type DBusSignalHandler = Box<FnMut(&DBusConnection, &DBusTarget) -> ()>;
 type DBusSignalHandlers = Vec<DBusSignalHandler>;
@@ -22,80 +22,109 @@ fn _add_handler(handlers: &mut DBusSignalHandlerMap, signal: DBusTarget, handler
     };
 }
 
-struct DBusObjectTreeCursor<'a> {
-    tree: &'a mut DBusObjectTree,
+struct DBusObjectTreeCursor {
+    tree: ObjectTree,
 }
 
-impl<'a> DBusObjectTreeCursor<'a> {
-    pub fn new(tree: &'a mut DBusObjectTree) -> Self {
+impl DBusObjectTreeCursor {
+    pub fn new(tree: ObjectTree) -> Self {
         DBusObjectTreeCursor {
             tree: tree,
         }
     }
 
-    pub fn tree(&self) -> &DBusObjectTree {
-        self.tree
+    pub fn tree(&self) -> &ObjectTree {
+        &self.tree
     }
 
     pub fn has_object(&self) -> bool {
-        self.tree.object.is_some()
+        self.tree.borrow().object.is_some()
+    }
+
+    pub fn is_manager(&self) -> bool {
+        self.tree.borrow().manager
     }
 
     pub fn set_object(&mut self, object: DBusObject, manager: bool) {
-        self.tree.object = Some(object);
-        self.tree.manager = manager;
+        self.tree.borrow_mut().object = Some(object);
+        self.tree.borrow_mut().manager = manager;
     }
 
     pub fn find_or_create(self, name: &str) -> Self {
-        DBusObjectTreeCursor::new(self.tree.find_or_create_object(name))
+        DBusObjectTreeCursor::new(self.tree.borrow_mut().find_or_create_object(name))
     }
 
     pub fn find(self, name: &str) -> Option<Self> {
-        self.tree.find_object(name).map(DBusObjectTreeCursor::new)
+        self.tree.borrow().find_object(name).map(DBusObjectTreeCursor::new)
     }
 
     pub fn remove(self, name: &str) -> Option<DBusObject> {
-        self.tree.remove_object(name)
+        self.tree.borrow_mut().remove_object(name)
     }
 }
 
 struct DBusObjectManagerInterface;
 
 impl DBusObjectManagerInterface {
-    pub fn new() -> DBusInterface {
+    fn get_managed_objects() -> DBusMethodResult {
         unimplemented!()
     }
+
+    pub fn new() -> DBusInterface {
+        DBusInterface::new()
+            .add_method("GetManagedObjects", DBusMethod::new(move |_| Self::get_managed_objects())
+                .add_result(DBusArgument::new("objpath_interfaces_and_properties", "a{oa{sa{sv}}}")))
+    }
 }
+
+type ObjectTree = Rc<RefCell<DBusObjectTree>>;
+type ObjectTreeRef = Weak<RefCell<DBusObjectTree>>;
+type ObjectTreeMap = DBusMap<ObjectTree>;
 
 struct DBusObjectTree {
     object: Option<DBusObject>,
     manager: bool,
     children_names: DBusChildrenList,
-    children: DBusMap<DBusObjectTree>,
+    children: ObjectTreeMap,
+    self_ref: Option<ObjectTreeRef>,
 }
 
 impl DBusObjectTree {
-    pub fn new() -> Self {
+    fn new_empty() -> Self {
         DBusObjectTree {
             object: None,
             manager: false,
             children_names: Rc::new(RefCell::new(vec![])),
             children: DBusMap::new(),
+            self_ref: None,
         }
     }
 
-    pub fn find_object(&mut self, name: &str) -> Option<&mut Self> {
-        self.children.get_mut(name)
+    pub fn new() -> ObjectTree {
+        let self_ref = Rc::new(RefCell::new(Self::new_empty()));
+
+        RefMut::map(self_ref.borrow_mut(), |tree| {
+            tree.self_ref = Some(Rc::downgrade(&self_ref));
+            tree
+        });
+
+        self_ref
     }
 
-    pub fn find_or_create_object(&mut self, name: &str) -> &mut Self {
+    pub fn find_object(&self, name: &str) -> Option<Rc<RefCell<DBusObjectTree>>> {
+        self.children.get(name).map(|o| {
+            o.clone()
+        })
+    }
+
+    pub fn find_or_create_object(&mut self, name: &str) -> ObjectTree {
         let children_mod = self.children_names.clone();
 
         self.children.entry(name.to_owned())
             .or_insert_with(move || {
                 children_mod.borrow_mut().push(name.to_owned());
                 DBusObjectTree::new()
-            })
+            }).clone()
     }
 
     pub fn remove_object(&mut self, name: &str) -> Option<DBusObject> {
@@ -107,7 +136,7 @@ impl DBusObjectTree {
 
             // TODO: emit InterfacesRemoved signals
 
-            obj.object
+            obj.borrow().object
         })
     }
 
@@ -116,7 +145,7 @@ impl DBusObjectTree {
             return Err(DBusError::InvalidPath(path));
         }
 
-        let top_cursor = DBusObjectTreeCursor::new(self);
+        let top_cursor = DBusObjectTreeCursor::new(self.self_ref.unwrap().upgrade().unwrap());
 
         let mut ins_cursor = try!(path.split("/").skip(1).fold(Ok(top_cursor), |res_cursor, component| {
             res_cursor.and_then(|cursor| {
@@ -138,8 +167,8 @@ impl DBusObjectTree {
             iface_map
         };
 
-        let iface_map = Rc::new(try!(DBusInterfaceMap::new(final_iface, ins_cursor.tree().children_names.clone())));
-        Ok(ins_cursor.set_object(DBusObject::new(&path, iface_map), manager))
+        let rc_iface_map = Rc::new(try!(DBusInterfaceMap::new(iface_map, Rc::downgrade(&ins_cursor.tree().borrow().children_names))));
+        Ok(ins_cursor.set_object(DBusObject::new(&path, rc_iface_map), manager))
 
         // TODO: emit InterfacesAdded signal
     }
@@ -150,7 +179,7 @@ impl DBusObjectTree {
         }
 
         let full_path = path.clone();
-        let mut cursor = DBusObjectTreeCursor::new(self);
+        let mut cursor = DBusObjectTreeCursor::new(self.self_ref.unwrap().upgrade().unwrap().clone());
 
         let mut iter = path.split("/").skip(1).peekable();
         loop {
@@ -178,7 +207,7 @@ pub struct DBusServer {
     name: String,
     can_handle: bool,
 
-    objects: DBusObjectTree,
+    objects: ObjectTree,
     signals: DBusSignalHandlerMap,
     namespace_signals: DBusSignalHandlerMap,
 }
@@ -199,9 +228,6 @@ impl DBusServer {
     pub fn new<N: ToString>(conn: Rc<DBusConnection>, name: N) -> Result<Self, DBusError> {
         let name_str = name.to_string();
         try!(conn.request_name(&name_str, DBusRequestNameFlags::DoNotQueue));
-
-        // TODO: add root object
-        // TODO: add ObjectManager interface
 
         Ok(DBusServer {
             conn: conn,
@@ -287,8 +313,8 @@ impl DBusServer {
         let opt_path = m.path();
 
         opt_path.and_then(|path| {
-            if let Some(tree) = self.objects.borrow_mut().find_object(&path) {
-                tree.object.as_mut().and_then(|mut obj| {
+            if let Some(tree) = self.objects.borrow().find_object(&path) {
+                tree.borrow_mut().object.as_mut().and_then(|mut obj| {
                     match obj.handle_message(&conn, m) {
                         None          => Some(m),
                         Some(Ok(()))  => None,

@@ -12,7 +12,7 @@ use super::value::{DBusBasicValue, DBusDictionary, DBusSignature, DBusValue};
 use std::cell::{Ref, RefCell};
 use std::collections::btree_map::{BTreeMap, Entry};
 use std::collections::HashMap;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 pub type DBusMap<T> = BTreeMap<String, T>;
 
@@ -304,37 +304,40 @@ impl DBusPeerInterface {
 struct DBusPropertyInterface;
 
 impl DBusPropertyInterface {
-    fn get_property(map: &InterfaceMap, m: &mut DBusMessage) -> DBusMethodResult {
+    fn get_property(map: &InterfaceMapRef, m: &mut DBusMessage) -> DBusMethodResult {
+        let imap = try!(interface_map_upgrade(map));
         let values = try!(DBusArguments::new(m));
         let iface = try!(values.extract_string(0));
         let property = try!(values.extract_string(1));
 
-        require_interface(&map.borrow(), iface).and_then(|iface| {
+        require_interface(&imap.borrow(), iface).and_then(|iface| {
             iface.get_property_value(property)
         })
     }
 
-    fn set_property(map: &mut InterfaceMap, m: &mut DBusMessage) -> DBusMethodResult {
+    fn set_property(map: &mut InterfaceMapRef, m: &mut DBusMessage) -> DBusMethodResult {
+        let imap = try!(interface_map_upgrade(map));
         let values = try!(DBusArguments::new(m));
         let iface = try!(values.extract_string(0));
         let property = try!(values.extract_string(1));
         let value = try!(values.extract(2));
 
-        require_interface(&map.borrow(), iface).and_then(|iface| {
+        require_interface(&imap.borrow(), iface).and_then(|iface| {
             iface.set_property_value(property, value)
         })
     }
 
-    fn get_all_properties(map: &InterfaceMap, m: &mut DBusMessage) -> DBusMethodResult {
+    fn get_all_properties(map: &InterfaceMapRef, m: &mut DBusMessage) -> DBusMethodResult {
+        let imap = try!(interface_map_upgrade(map));
         let values = try!(DBusArguments::new(m));
         let iface = try!(values.extract_string(0));
 
-        require_interface(&map.borrow(), iface).map(|iface| {
+        require_interface(&imap.borrow(), iface).map(|iface| {
             vec![DBusValue::Dictionary(iface.get_property_map())]
         })
     }
 
-    pub fn new(map: InterfaceMap) -> DBusInterface {
+    pub fn new(map: InterfaceMapRef) -> DBusInterface {
         let get_map = map.clone();
         let mut set_map = map.clone();
         let get_all_map = map.clone();
@@ -356,9 +359,20 @@ impl DBusPropertyInterface {
 
 struct DBusIntrospectableInterface;
 pub type DBusChildrenList = Rc<RefCell<Vec<String>>>;
+pub type DBusChildrenListRef = Weak<RefCell<Vec<String>>>;
+
+fn children_list_upgrade(w: &DBusChildrenListRef) -> Result<DBusChildrenList, DBusErrorMessage> {
+    w.upgrade().ok_or_else(|| {
+        error!("interfaces still active when the children list went away?");
+        DBusErrorMessage::new("net.benboeckel.EZDBus.Error.InternalError",
+                              "children list required, but has already been dropped")
+    })
+}
 
 impl DBusIntrospectableInterface {
-    fn introspect(map: &InterfaceMap, children: &DBusChildrenList) -> DBusMethodResult {
+    fn introspect(map: &InterfaceMapRef, children: &DBusChildrenListRef) -> DBusMethodResult {
+        let imap = try!(interface_map_upgrade(map));
+        let clist = try!(children_list_upgrade(children));
         let xml = format!(concat!(
             r#"<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"\n"#,
             r#" "http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">\n"#,
@@ -368,8 +382,8 @@ impl DBusIntrospectableInterface {
             r#"{}"#, // children
             r#"</node>\n"#),
             env!("CARGO_PKG_VERSION"),
-            Self::_to_string_map(&*map.borrow(), |k, v| Self::_introspect_interface(" ", k, v)),
-            children.borrow().iter().fold("".to_owned(), |p, name| {
+            Self::_to_string_map(&*imap.borrow(), |k, v| Self::_introspect_interface(" ", k, v)),
+            clist.borrow().iter().fold("".to_owned(), |p, name| {
                 format!(r#"{} <node name="{}" />"#, p, name)
             }));
         Ok(vec![DBusValue::BasicValue(DBusBasicValue::String(xml))])
@@ -451,7 +465,7 @@ impl DBusIntrospectableInterface {
             indent)
     }
 
-    pub fn new(map: InterfaceMap, children: DBusChildrenList) -> DBusInterface {
+    pub fn new(map: InterfaceMapRef, children: DBusChildrenListRef) -> DBusInterface {
         let introspect_map = map.clone();
         let children = children.clone();
 
@@ -463,13 +477,21 @@ impl DBusIntrospectableInterface {
 
 fn require_interface<'a>(map: &'a Ref<'a, DBusMap<DBusInterface>>, name: &str) -> Result<&'a DBusInterface, DBusErrorMessage> {
     map.get(name).ok_or(
-        DBusErrorMessage {
-            name: "org.freedesktop.DBus.Error.UnknownInterface".to_owned(),
-            message: format!("unknown interface: {}", name),
-        })
+        DBusErrorMessage::new("org.freedesktop.DBus.Error.UnknownInterface",
+                              format!("unknown interface: {}", name))
+    )
 }
 
 type InterfaceMap = Rc<RefCell<DBusMap<DBusInterface>>>;
+type InterfaceMapRef = Weak<RefCell<DBusMap<DBusInterface>>>;
+
+fn interface_map_upgrade(w: &InterfaceMapRef) -> Result<InterfaceMap, DBusErrorMessage> {
+    w.upgrade().ok_or_else(|| {
+        error!("interfaces still active when the map went away?");
+        DBusErrorMessage::new("net.benboeckel.EZDBus.Error.InternalError",
+                              "interface map required, but has already been dropped")
+    })
+}
 
 pub struct DBusInterfaceMapBuilder {
     map: DBusMap<DBusInterface>,
@@ -498,7 +520,7 @@ impl DBusInterfaceMapBuilder {
 }
 
 impl DBusInterfaceMap {
-    pub fn new(builder: DBusInterfaceMapBuilder, children: DBusChildrenList) -> Result<Self, DBusError> {
+    pub fn new(builder: DBusInterfaceMapBuilder, children: DBusChildrenListRef) -> Result<Self, DBusError> {
         let this = DBusInterfaceMap {
             map: Rc::new(RefCell::new(builder.map)),
         };
@@ -507,10 +529,10 @@ impl DBusInterfaceMap {
             .and_then(|this| {
                 this.add_interface("org.freedesktop.DBus.Peer", DBusPeerInterface::new())
             }).and_then(|this| {
-                let property_map = this.map.clone();
+                let property_map = Rc::downgrade(&this.map);
                 this.add_interface("org.freedesktop.DBus.Properties", DBusPropertyInterface::new(property_map))
             }).and_then(|this| {
-                let introspectable_map = this.map.clone();
+                let introspectable_map = Rc::downgrade(&this.map);
                 this.add_interface("org.freedesktop.DBus.Introspectable", DBusIntrospectableInterface::new(introspectable_map, children))
             })
     }

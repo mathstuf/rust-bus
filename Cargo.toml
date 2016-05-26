@@ -8,15 +8,10 @@ Convenience wrappers for exposing a D-Bus interface.
 """
 
 [dependencies]
+dbus-bytestream = "~0.1.3"
 dbus-serialize = "~0.1.1"
 log = "~0.3.2"
-
-[dependencies.dbus-bytestream]
-git = "https://github.com/mathstuf/dbus-bytestream.git"
-branch = "impl-error-trait"
-
-[dependencies.machine-id]
-git = "https://github.com/mathstuf/rust-machine-id"
+machine-id = "~0.2.1"
 
 [lib]
 name = "ez_dbus"
