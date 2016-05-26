@@ -1,3 +1,5 @@
+extern crate bitflags;
+
 extern crate dbus_bytestream;
 use self::dbus_bytestream::connection::Connection;
 
@@ -26,6 +28,10 @@ pub enum DBusReleaseNameReply {
     Released,
     NonExistent,
     NotOwner,
+}
+
+pub struct DBusMessages<'a> {
+    conn: &'a Connection,
 }
 
 impl DBusConnection {
@@ -98,5 +104,30 @@ impl DBusConnection {
             .add_argument(&match_rule);
         try!(self.conn.call_sync(msg.extract()));
         Ok(())
+    }
+
+    pub fn iter(&self) -> DBusMessages {
+        DBusMessages {
+            conn: &self.conn,
+        }
+    }
+}
+
+impl<'a> Iterator for DBusMessages<'a> {
+    type Item = DBusMessage;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let res = self.conn.read_msg();
+        match res {
+            Ok(message) => {
+                let dbus_message = DBusMessage::new(message);
+                if dbus_message.should_handle() {
+                    Some(dbus_message)
+                } else {
+                    None
+                }
+            },
+            Err(_)      => None,
+        }
     }
 }

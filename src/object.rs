@@ -1,5 +1,9 @@
+extern crate dbus_bytestream;
+
+use super::connection::DBusConnection;
 use super::error::DBusError;
 use super::interface::DBusInterfaceMap;
+use super::message::DBusMessage;
 
 pub struct DBusObject {
     path: String,
@@ -17,5 +21,9 @@ impl DBusObject {
 
     pub fn path(&self) -> &str {
         &self.path
+    }
+
+    pub fn handle_message(&mut self, conn: &DBusConnection, msg: &mut DBusMessage) -> Option<Result<(), ()>> {
+        self.interfaces.handle(conn, msg)
     }
 }
