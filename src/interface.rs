@@ -10,7 +10,7 @@ use super::value::{BasicValue, Dictionary, Signature, Value};
 use std::cell::{Ref, RefCell};
 use std::collections::btree_map::{BTreeMap, Entry};
 use std::collections::HashMap;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 type Map<T> = BTreeMap<String, T>;
 
@@ -265,7 +265,9 @@ impl Interface {
 }
 
 type InterfaceMap = Rc<RefCell<Map<Interface>>>;
+type InterfaceMapRef = Weak<RefCell<Map<Interface>>>;
 pub type ChildrenList = Rc<RefCell<Vec<String>>>;
+type ChildrenListRef = Weak<RefCell<Vec<String>>>;
 
 fn require_interface<'a>(map: &'a Ref<'a, Map<Interface>>, name: &str) -> Result<&'a Interface, ErrorMessage> {
     map.get(name).ok_or(
@@ -303,51 +305,60 @@ impl PeerInterface {
 struct PropertyInterface;
 
 impl PropertyInterface {
-    fn get_property(map: &InterfaceMap, m: &mut Message) -> MethodResult {
+    fn get_property(map: InterfaceMapRef, m: &mut Message) -> MethodResult {
         let values = try!(Arguments::new(m));
         let iface = try!(values.extract_string(0));
         let property = try!(values.extract_string(1));
 
-        require_interface(&map.borrow(), iface).and_then(|iface| {
+        let smap = map.upgrade().expect("get_property: interface map no longer exists?");
+        let smap_ref = &smap.borrow();
+
+        require_interface(smap_ref, iface).and_then(|iface| {
             iface.get_property_value(property)
         })
     }
 
-    fn set_property(map: &mut InterfaceMap, m: &mut Message) -> MethodResult {
+    fn set_property(map: InterfaceMapRef, m: &mut Message) -> MethodResult {
         let values = try!(Arguments::new(m));
         let iface = try!(values.extract_string(0));
         let property = try!(values.extract_string(1));
         let value = try!(values.extract(2));
 
-        require_interface(&map.borrow(), iface).and_then(|iface| {
+        let smap = map.upgrade().expect("get_property: interface map no longer exists?");
+        let smap_ref = &smap.borrow();
+
+        require_interface(smap_ref, iface).and_then(|iface| {
             iface.set_property_value(property, value)
         })
     }
 
-    fn get_all_properties(map: &InterfaceMap, m: &mut Message) -> MethodResult {
+    fn get_all_properties(map: InterfaceMapRef, m: &mut Message) -> MethodResult {
         let values = try!(Arguments::new(m));
         let iface = try!(values.extract_string(0));
 
-        require_interface(&map.borrow(), iface).map(|iface| {
+        let smap = map.upgrade().expect("get_property: interface map no longer exists?");
+        let smap_ref = &smap.borrow();
+
+        require_interface(smap_ref, iface).map(|iface| {
             vec![Value::Dictionary(iface.get_property_map())]
         })
     }
 
-    pub fn new(map: InterfaceMap) -> Interface {
+    pub fn new(map: InterfaceMapRef) -> Interface {
         let get_map = map.clone();
-        let mut set_map = map.clone();
+        let set_map = map.clone();
         let get_all_map = map.clone();
 
         Interface::new()
-            .add_method("Get", Method::new(move |m| Self::get_property(&get_map, m))
+            .add_method("Get", Method::new(move |m| Self::get_property(get_map.clone(), m))
                 .add_argument(Argument::new("interface_name", "s"))
                 .add_argument(Argument::new("property_name", "s"))
                 .add_result(Argument::new("value", "v")))
-            .add_method("Set", Method::new(move |m| Self::set_property(&mut set_map, m))
+            .add_method("Set", Method::new(move |m| Self::set_property(set_map.clone(), m))
                 .add_argument(Argument::new("interface_name", "s"))
                 .add_argument(Argument::new("property_name", "s"))
                 .add_result(Argument::new("value", "v")))
-            .add_method("GetAll", Method::new(move |m| Self::get_all_properties(&get_all_map, m))
+            .add_method("GetAll", Method::new(move |m| Self::get_all_properties(get_all_map.clone(), m))
                 .add_argument(Argument::new("interface_name", "s"))
                 .add_result(Argument::new("props", "{sv}")))
     }
@@ -356,7 +367,10 @@ impl PropertyInterface {
 struct IntrospectableInterface;
 
 impl IntrospectableInterface {
-    fn introspect(map: &InterfaceMap, children: &ChildrenList, _: &mut Message) -> MethodResult {
+    fn introspect(map: InterfaceMapRef, children: ChildrenListRef, _: &mut Message) -> MethodResult {
+        let smap = map.upgrade().unwrap();
+        let schildren = children.upgrade().unwrap();
+
         let xml = format!(concat!(
             r#"<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"\n"#,
             r#" "http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">\n"#,
@@ -366,8 +380,8 @@ impl IntrospectableInterface {
             r#"{}"#, // children
             r#"</node>\n"#),
             env!("CARGO_PKG_VERSION"),
-            Self::_to_string_map(&*map.borrow(), |k, v| Self::_introspect_interface(" ", k, v)),
-            children.borrow().iter().fold("".to_owned(), |p, name| {
+            Self::_to_string_map(&*smap.borrow(), |k, v| Self::_introspect_interface(" ", k, v)),
+            schildren.borrow().iter().fold("".to_owned(), |p, name| {
                 format!(r#"{} <node name="{}" />"#, p, name)
             }));
         Ok(vec![Value::BasicValue(BasicValue::String(xml))])
@@ -449,12 +463,9 @@ impl IntrospectableInterface {
             indent)
     }
 
-    pub fn new(map: InterfaceMap, children: ChildrenList) -> Interface {
-        let introspect_map = map.clone();
-        let children = children.clone();
-
+    pub fn new(map: InterfaceMapRef, children: ChildrenListRef) -> Interface {
         Interface::new()
-            .add_method("Introspect", Method::new(move |m| Self::introspect(&introspect_map, &children, m))
+            .add_method("Introspect", Method::new(move |m| Self::introspect(map.clone(), children.clone(), m))
                 .add_result(Argument::new("xml_data", "s")))
     }
 }
@@ -491,13 +502,17 @@ impl Interfaces {
     pub fn finalize(mut self, children: ChildrenList) -> Result<Self, Error> {
         self = try!(Ok(self)
                 .and_then(|this| {
-                    this.add_interface("org.freedesktop.DBus.Peer", PeerInterface::new())
+                    this.add_interface("org.freedesktop.DBus.Peer",
+                                       PeerInterface::new())
                 }).and_then(|this| {
-                    let property_map = this.map.clone();
-                    this.add_interface("org.freedesktop.DBus.Properties", PropertyInterface::new(property_map))
+                    let map_ref = Rc::downgrade(&this.map);
+                    this.add_interface("org.freedesktop.DBus.Properties",
+                                       PropertyInterface::new(map_ref))
                 }).and_then(|this| {
-                    let introspectable_map = this.map.clone();
-                    this.add_interface("org.freedesktop.DBus.Introspectable", IntrospectableInterface::new(introspectable_map, children))
+                    let map_ref = Rc::downgrade(&this.map);
+                    this.add_interface("org.freedesktop.DBus.Introspectable",
+                                       IntrospectableInterface::new(map_ref,
+                                                                    Rc::downgrade(&children)))
                 }));
 
         self.finalized = true;
