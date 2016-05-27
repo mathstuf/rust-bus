@@ -1,4 +1,4 @@
-use super::connection::{Connection, ReleaseNameReply, RequestNameFlags};
+use super::connection::{Connection, ReleaseNameReply, DO_NOT_QUEUE};
 use super::error::Error;
 use super::interface::Interfaces;
 use super::message::Message;
@@ -45,7 +45,7 @@ impl Server {
     }
 
     pub fn new(conn: Rc<Connection>, name: &str) -> Result<Server, Error> {
-        try!(conn.request_name(name, RequestNameFlags::DoNotQueue));
+        try!(conn.request_name(name, DO_NOT_QUEUE));
 
         // TODO: add root object
         // TODO: add ObjectManager interface

@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate bitflags;
+
 mod arguments;
 mod connection;
 mod error;
@@ -12,6 +15,7 @@ mod value;
 pub use connection::Connection;
 pub use connection::ReleaseNameReply;
 pub use connection::RequestNameFlags;
+pub use connection::{ALLOW_REPLACEMENT, REPLACE_EXISTING, DO_NOT_QUEUE};
 pub use connection::RequestNameReply;
 pub use error::Error;
 pub use interface::Annotation;

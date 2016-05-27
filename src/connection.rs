@@ -1,3 +1,5 @@
+extern crate bitflags;
+
 extern crate dbus_bytestream;
 use self::dbus_bytestream::connection;
 
@@ -9,10 +11,12 @@ pub struct Connection {
     conn: connection::Connection,
 }
 
-pub enum RequestNameFlags {
-    AllowReplacement = 0x1,
-    ReplaceExisting  = 0x2,
-    DoNotQueue       = 0x4,
+bitflags! {
+    pub flags RequestNameFlags: u32 {
+        const ALLOW_REPLACEMENT = 0x1,
+        const REPLACE_EXISTING  = 0x2,
+        const DO_NOT_QUEUE      = 0x4,
+    }
 }
 
 pub enum RequestNameReply {
@@ -52,7 +56,7 @@ impl Connection {
                 "org.freedesktop.DBus",
                 "RequestName")
             .add_argument(&name)
-            .add_argument(&(flags as u32));
+            .add_argument(&flags.bits);
         if let Some(mut results) = try!(self.conn.call_sync(msg.extract())) {
             if let Some(Value::BasicValue(BasicValue::Uint32(r))) = results.pop() {
                 match r {
