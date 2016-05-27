@@ -1,39 +1,39 @@
-use super::connection::{DBusConnection, DBusReleaseNameReply, DBusRequestNameFlags};
-use super::error::DBusError;
-use super::interface::DBusInterfaceMap;
-use super::message::DBusMessage;
-use super::object::DBusObject;
-use super::target::DBusTarget;
+use super::connection::{Connection, ReleaseNameReply, RequestNameFlags};
+use super::error::Error;
+use super::interface::Interfaces;
+use super::message::Message;
+use super::object::Object;
+use super::target::Target;
 
 use std::cell::RefCell;
 use std::collections::btree_map::{BTreeMap, Entry};
 use std::rc::Rc;
 
-pub type DBusSignalHandler = Box<FnMut(&DBusConnection, &DBusTarget) -> ()>;
-type DBusSignalHandlers = Vec<DBusSignalHandler>;
-type DBusSignalHandlerMap = BTreeMap<DBusTarget, DBusSignalHandlers>;
+pub type SignalHandler = Box<FnMut(&Connection, &Target) -> ()>;
+type SignalHandlers = Vec<SignalHandler>;
+type SignalHandlerMap = BTreeMap<Target, SignalHandlers>;
 
-fn _add_handler(handlers: &mut DBusSignalHandlerMap, signal: DBusTarget, handler: DBusSignalHandler) {
+fn _add_handler(handlers: &mut SignalHandlerMap, signal: Target, handler: SignalHandler) {
     match handlers.entry(signal) {
         Entry::Vacant(v)    => { v.insert(vec![handler]); },
         Entry::Occupied(o)  => o.into_mut().push(handler),
     };
 }
 
-pub struct DBusServer {
-    conn: Rc<DBusConnection>,
+pub struct Server {
+    conn: Rc<Connection>,
     name: String,
     can_handle: bool,
 
     // TODO: store children information
-    objects: BTreeMap<String, DBusObject>,
-    signals: DBusSignalHandlerMap,
-    namespace_signals: DBusSignalHandlerMap,
+    objects: BTreeMap<String, Object>,
+    signals: SignalHandlerMap,
+    namespace_signals: SignalHandlerMap,
 }
 
-impl DBusServer {
-    pub fn new_listener(conn: Rc<DBusConnection>, name: &str) -> Result<DBusServer, DBusError> {
-        Ok(DBusServer {
+impl Server {
+    pub fn new_listener(conn: Rc<Connection>, name: &str) -> Result<Server, Error> {
+        Ok(Server {
             conn: conn,
             name: name.to_owned(),
             can_handle: false,
@@ -44,13 +44,13 @@ impl DBusServer {
         })
     }
 
-    pub fn new(conn: Rc<DBusConnection>, name: &str) -> Result<DBusServer, DBusError> {
-        try!(conn.request_name(name, DBusRequestNameFlags::DoNotQueue));
+    pub fn new(conn: Rc<Connection>, name: &str) -> Result<Server, Error> {
+        try!(conn.request_name(name, RequestNameFlags::DoNotQueue));
 
         // TODO: add root object
         // TODO: add ObjectManager interface
 
-        Ok(DBusServer {
+        Ok(Server {
             conn: conn,
             name: name.to_owned(),
             can_handle: true,
@@ -65,16 +65,16 @@ impl DBusServer {
         &self.name
     }
 
-    pub fn add_object(&mut self, path: &str, iface_map: DBusInterfaceMap) -> Result<&mut Self, DBusError> {
+    pub fn add_object(&mut self, path: &str, iface_map: Interfaces) -> Result<&mut Self, Error> {
         if !self.can_handle {
-            return Err(DBusError::NoServerName);
+            return Err(Error::NoServerName);
         }
 
         match self.objects.entry(path.to_owned()) {
             Entry::Vacant(v)    => {
                 // TODO: store this
                 let children = Rc::new(RefCell::new(vec![]));
-                let obj = try!(DBusObject::new(path, iface_map, children));
+                let obj = try!(Object::new(path, iface_map, children));
 
                 // TODO: emit InterfacesAdded signal
 
@@ -82,13 +82,13 @@ impl DBusServer {
 
                 Ok(())
             },
-            Entry::Occupied(_)  => Err(DBusError::PathAlreadyRegistered(path.to_owned())),
+            Entry::Occupied(_)  => Err(Error::PathAlreadyRegistered(path.to_owned())),
         }.map(|_| self)
     }
 
-    pub fn remove_object(&mut self, path: &str) -> Result<&mut Self, DBusError> {
+    pub fn remove_object(&mut self, path: &str) -> Result<&mut Self, Error> {
         if !self.can_handle {
-            return Err(DBusError::NoServerName);
+            return Err(Error::NoServerName);
         }
 
         match self.objects.remove(path) {
@@ -97,11 +97,11 @@ impl DBusServer {
 
                 Ok(self)
             },
-            None    => Err(DBusError::NoSuchPath(path.to_owned())),
+            None    => Err(Error::NoSuchPath(path.to_owned())),
         }
     }
 
-    pub fn connect(&mut self, signal: DBusTarget, callback: DBusSignalHandler) -> Result<&mut Self, DBusError> {
+    pub fn connect(&mut self, signal: Target, callback: SignalHandler) -> Result<&mut Self, Error> {
         let dbus_match = format!("type='signal',interface='{}',path='{}',member='{}'",
                                  signal.interface,
                                  signal.object,
@@ -113,7 +113,7 @@ impl DBusServer {
         Ok(self)
     }
 
-    pub fn connect_namespace(&mut self, signal: DBusTarget, callback: DBusSignalHandler) -> Result<&mut Self, DBusError> {
+    pub fn connect_namespace(&mut self, signal: Target, callback: SignalHandler) -> Result<&mut Self, Error> {
         let dbus_match = format!("type='signal',interface='{}',path_namespace='{}',member='{}'",
                                  signal.interface,
                                  signal.object,
@@ -125,7 +125,7 @@ impl DBusServer {
         Ok(self)
     }
 
-    pub fn handle_message<'b>(&mut self, m: &'b mut DBusMessage) -> Option<&'b mut DBusMessage> {
+    pub fn handle_message<'b>(&mut self, m: &'b mut Message) -> Option<&'b mut Message> {
         if m.is_signal() {
             Some(self._match_signal(m))
         } else if m.is_method_call() {
@@ -135,7 +135,7 @@ impl DBusServer {
         }
     }
 
-    fn _call_method<'b>(&mut self, m: &'b mut DBusMessage) -> Option<&'b mut DBusMessage> {
+    fn _call_method<'b>(&mut self, m: &'b mut Message) -> Option<&'b mut Message> {
         let conn = self.conn.clone();
         self.objects.iter_mut().fold(Some(m), |opt_m, (_, object)| {
             opt_m.and_then(|mut m| {
@@ -151,10 +151,10 @@ impl DBusServer {
         })
     }
 
-    fn _match_signal<'b>(&mut self, m: &'b mut DBusMessage) -> &'b mut DBusMessage {
+    fn _match_signal<'b>(&mut self, m: &'b mut Message) -> &'b mut Message {
         let conn = self.conn.clone();
 
-        DBusTarget::extract(m).map(|signal| {
+        Target::extract(m).map(|signal| {
             for handlers in self.signals.get_mut(&signal) {
                 for handler in handlers.iter_mut() {
                     handler(&conn, &signal);
@@ -176,7 +176,7 @@ impl DBusServer {
     }
 }
 
-impl Drop for DBusServer {
+impl Drop for Server {
     fn drop(&mut self) {
         if !self.can_handle {
             return;
@@ -186,9 +186,9 @@ impl Drop for DBusServer {
         match res {
             Ok(reply) =>
                 match reply {
-                    DBusReleaseNameReply::Released    => (),
-                    DBusReleaseNameReply::NonExistent => panic!("internal error: non-existent name {}?!", self.name),
-                    DBusReleaseNameReply::NotOwner    => panic!("internal error: not the owner of {}?!", self.name),
+                    ReleaseNameReply::Released    => (),
+                    ReleaseNameReply::NonExistent => panic!("internal error: non-existent name {}?!", self.name),
+                    ReleaseNameReply::NotOwner    => panic!("internal error: not the owner of {}?!", self.name),
                 },
             Err(err) => println!("failed to release {}: {:?}", self.name, err),
         }

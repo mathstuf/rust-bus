@@ -1,52 +1,52 @@
 extern crate dbus_bytestream;
-use self::dbus_bytestream::connection::Connection;
+use self::dbus_bytestream::connection;
 
-use super::error::DBusError;
-use super::message::DBusMessage;
-use super::value::{DBusBasicValue, DBusValue};
+use super::error::Error;
+use super::message::Message;
+use super::value::{BasicValue, Value};
 
-pub struct DBusConnection {
-    conn: Connection,
+pub struct Connection {
+    conn: connection::Connection,
 }
 
-pub enum DBusRequestNameFlags {
+pub enum RequestNameFlags {
     AllowReplacement = 0x1,
     ReplaceExisting  = 0x2,
     DoNotQueue       = 0x4,
 }
 
-pub enum DBusRequestNameReply {
+pub enum RequestNameReply {
     PrimaryOwner,
     InQueue,
     Exists,
     AlreadyOwner,
 }
 
-pub enum DBusReleaseNameReply {
+pub enum ReleaseNameReply {
     Released,
     NonExistent,
     NotOwner,
 }
 
-pub struct DBusMessages<'a> {
-    conn: &'a Connection,
+pub struct Messages<'a> {
+    conn: &'a connection::Connection,
 }
 
-impl DBusConnection {
-    pub fn session_new() -> Result<DBusConnection, DBusError> {
-        Ok(DBusConnection {
-            conn: try!(Connection::connect_session()),
+impl Connection {
+    pub fn session_new() -> Result<Connection, Error> {
+        Ok(Connection {
+            conn: try!(connection::Connection::connect_session()),
         })
     }
 
-    pub fn system_new() -> Result<DBusConnection, DBusError> {
-        Ok(DBusConnection {
-            conn: try!(Connection::connect_system()),
+    pub fn system_new() -> Result<Connection, Error> {
+        Ok(Connection {
+            conn: try!(connection::Connection::connect_system()),
         })
     }
 
-    pub fn request_name(&self, name: &str, flags: DBusRequestNameFlags) -> Result<DBusRequestNameReply, DBusError> {
-        let msg = DBusMessage::new_method_call(
+    pub fn request_name(&self, name: &str, flags: RequestNameFlags) -> Result<RequestNameReply, Error> {
+        let msg = Message::new_method_call(
                 "org.freedesktop.DBus",
                 "/org/freedesktop/DBus",
                 "org.freedesktop.DBus",
@@ -54,47 +54,47 @@ impl DBusConnection {
             .add_argument(&name)
             .add_argument(&(flags as u32));
         if let Some(mut results) = try!(self.conn.call_sync(msg.extract())) {
-            if let Some(DBusValue::BasicValue(DBusBasicValue::Uint32(r))) = results.pop() {
+            if let Some(Value::BasicValue(BasicValue::Uint32(r))) = results.pop() {
                 match r {
-                    1 => Ok(DBusRequestNameReply::PrimaryOwner),
-                    2 => Ok(DBusRequestNameReply::InQueue),
-                    3 => Ok(DBusRequestNameReply::Exists),
-                    4 => Ok(DBusRequestNameReply::AlreadyOwner),
-                    _ => Err(DBusError::InvalidReply(format!("RequestName: invalid response {}", r))),
+                    1 => Ok(RequestNameReply::PrimaryOwner),
+                    2 => Ok(RequestNameReply::InQueue),
+                    3 => Ok(RequestNameReply::Exists),
+                    4 => Ok(RequestNameReply::AlreadyOwner),
+                    _ => Err(Error::InvalidReply(format!("RequestName: invalid response {}", r))),
                 }
             } else {
-                return Err(DBusError::InvalidReply("RequestName: invalid response".to_owned()));
+                return Err(Error::InvalidReply("RequestName: invalid response".to_owned()));
             }
         } else {
-            return Err(DBusError::InvalidReply("RequestName: no response".to_owned()));
+            return Err(Error::InvalidReply("RequestName: no response".to_owned()));
         }
     }
 
-    pub fn release_name(&self, name: &str) -> Result<DBusReleaseNameReply, DBusError> {
-        let msg = DBusMessage::new_method_call(
+    pub fn release_name(&self, name: &str) -> Result<ReleaseNameReply, Error> {
+        let msg = Message::new_method_call(
                 "org.freedesktop.DBus",
                 "/org/freedesktop/DBus",
                 "org.freedesktop.DBus",
                 "ReleaseName")
             .add_argument(&name);
         if let Some(mut results) = try!(self.conn.call_sync(msg.extract())) {
-            if let Some(DBusValue::BasicValue(DBusBasicValue::Uint32(r))) = results.pop() {
+            if let Some(Value::BasicValue(BasicValue::Uint32(r))) = results.pop() {
                 match r {
-                    1 => Ok(DBusReleaseNameReply::Released),
-                    2 => Ok(DBusReleaseNameReply::NonExistent),
-                    3 => Ok(DBusReleaseNameReply::NotOwner),
-                    _ => Err(DBusError::InvalidReply(format!("ReleaseName: invalid response {}", r))),
+                    1 => Ok(ReleaseNameReply::Released),
+                    2 => Ok(ReleaseNameReply::NonExistent),
+                    3 => Ok(ReleaseNameReply::NotOwner),
+                    _ => Err(Error::InvalidReply(format!("ReleaseName: invalid response {}", r))),
                 }
             } else {
-                return Err(DBusError::InvalidReply("ReleaseName: invalid response".to_owned()));
+                return Err(Error::InvalidReply("ReleaseName: invalid response".to_owned()));
             }
         } else {
-            return Err(DBusError::InvalidReply("ReleaseName: no response".to_owned()));
+            return Err(Error::InvalidReply("ReleaseName: no response".to_owned()));
         }
     }
 
-    pub fn add_match(&self, match_rule: &str) -> Result<(), DBusError> {
-        let msg = DBusMessage::new_method_call(
+    pub fn add_match(&self, match_rule: &str) -> Result<(), Error> {
+        let msg = Message::new_method_call(
                 "org.freedesktop.DBus",
                 "/org/freedesktop/DBus",
                 "org.freedesktop.DBus",
@@ -104,25 +104,25 @@ impl DBusConnection {
         Ok(())
     }
 
-    pub fn send(&self, msg: DBusMessage) -> Result<u32, DBusError> {
+    pub fn send(&self, msg: Message) -> Result<u32, Error> {
         Ok(try!(self.conn.send(msg.extract())))
     }
 
-    pub fn iter(&self) -> DBusMessages {
-        DBusMessages {
+    pub fn iter(&self) -> Messages {
+        Messages {
             conn: &self.conn,
         }
     }
 }
 
-impl<'a> Iterator for DBusMessages<'a> {
-    type Item = DBusMessage;
+impl<'a> Iterator for Messages<'a> {
+    type Item = Message;
 
     fn next(&mut self) -> Option<Self::Item> {
         let res = self.conn.read_msg();
         match res {
             Ok(message) => {
-                let dbus_message = DBusMessage::new(message);
+                let dbus_message = Message::new(message);
                 if dbus_message.should_handle() {
                     Some(dbus_message)
                 } else {

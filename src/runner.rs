@@ -1,20 +1,20 @@
-use super::connection::DBusConnection;
-use super::error::DBusError;
-use super::server::DBusServer;
+use super::connection::Connection;
+use super::error::Error;
+use super::server::Server;
 
 use std::collections::btree_map::{BTreeMap, Entry};
 use std::rc::Rc;
 
-pub struct DBusRunner {
-    conn: Rc<DBusConnection>,
+pub struct Runner {
+    conn: Rc<Connection>,
 
-    listeners: Vec<DBusServer>,
-    servers: BTreeMap<String, DBusServer>,
+    listeners: Vec<Server>,
+    servers: BTreeMap<String, Server>,
 }
 
-impl DBusRunner {
-    pub fn new(conn: DBusConnection) -> Result<DBusRunner, DBusError> {
-        Ok(DBusRunner {
+impl Runner {
+    pub fn new(conn: Connection) -> Result<Runner, Error> {
+        Ok(Runner {
             conn: Rc::new(conn),
 
             listeners: vec![],
@@ -22,29 +22,29 @@ impl DBusRunner {
         })
     }
 
-    pub fn add_listener(&mut self, name: &str) -> Result<&mut DBusServer, DBusError> {
-        let listener = try!(DBusServer::new_listener(self.conn.clone(), name));
+    pub fn add_listener(&mut self, name: &str) -> Result<&mut Server, Error> {
+        let listener = try!(Server::new_listener(self.conn.clone(), name));
 
         self.listeners.push(listener);
 
         Ok(self.listeners.last_mut().unwrap())
     }
 
-    pub fn add_server(&mut self, name: &str) -> Result<&mut DBusServer, DBusError> {
+    pub fn add_server(&mut self, name: &str) -> Result<&mut Server, Error> {
         match self.servers.entry(name.to_owned()) {
             Entry::Vacant(v)    => {
-                let server = try!(DBusServer::new(self.conn.clone(), name));
+                let server = try!(Server::new(self.conn.clone(), name));
 
                 Ok(v.insert(server))
             },
-            Entry::Occupied(_)  => Err(DBusError::ServerAlreadyRegistered(name.to_owned())),
+            Entry::Occupied(_)  => Err(Error::ServerAlreadyRegistered(name.to_owned())),
         }
     }
 
-    pub fn remove_server(&mut self, name: &str) -> Result<&mut Self, DBusError> {
+    pub fn remove_server(&mut self, name: &str) -> Result<&mut Self, Error> {
         match self.servers.remove(name) {
             Some(_) => Ok(self),
-            None    => Err(DBusError::NoSuchServer(name.to_owned())),
+            None    => Err(Error::NoSuchServer(name.to_owned())),
         }
     }
 

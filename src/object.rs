@@ -1,17 +1,17 @@
-use super::connection::DBusConnection;
-use super::error::DBusError;
-use super::interface::{DBusChildrenList, DBusInterfaceMap};
-use super::message::DBusMessage;
+use super::connection::Connection;
+use super::error::Error;
+use super::interface::{ChildrenList, Interfaces};
+use super::message::Message;
 
-pub struct DBusObject {
+pub struct Object {
     path: String,
 
-    interfaces: DBusInterfaceMap,
+    interfaces: Interfaces,
 }
 
-impl DBusObject {
-    pub fn new(path: &str, interfaces: DBusInterfaceMap, children: DBusChildrenList) -> Result<DBusObject, DBusError> {
-        Ok(DBusObject {
+impl Object {
+    pub fn new(path: &str, interfaces: Interfaces, children: ChildrenList) -> Result<Object, Error> {
+        Ok(Object {
             path: path.to_owned(),
             interfaces: try!(interfaces.finalize(children)),
         })
@@ -21,7 +21,7 @@ impl DBusObject {
         &self.path
     }
 
-    pub fn handle_message(&mut self, conn: &DBusConnection, msg: &mut DBusMessage) -> Option<Result<(), ()>> {
+    pub fn handle_message(&mut self, conn: &Connection, msg: &mut Message) -> Option<Result<(), ()>> {
         self.interfaces.handle(conn, msg)
     }
 }

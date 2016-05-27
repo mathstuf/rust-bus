@@ -2,11 +2,11 @@ extern crate dbus_bytestream;
 use self::dbus_bytestream::connection;
 use self::dbus_bytestream::demarshal;
 
-use std::error::Error;
+use std::error;
 use std::fmt::{Display, Formatter, Result};
 
 #[derive(Debug)]
-pub enum DBusError {
+pub enum Error {
     InvalidReply(String),
     ErrorMessage(connection::Error),
     NoServerName,
@@ -20,44 +20,44 @@ pub enum DBusError {
     InterfaceMapFinalized(String),
 }
 
-impl Display for DBusError {
+impl Display for Error {
     fn fmt(&self, f: &mut Formatter) -> Result {
         match *self {
-            DBusError::InvalidReply(ref desc)               => write!(f, "invalid reply: {}", desc),
-            DBusError::ErrorMessage(ref error)              => write!(f, "dbus error: {:?}", error),
-            DBusError::NoServerName                         => write!(f, "listening server cannot handle methods"),
-            DBusError::ServerAlreadyRegistered(ref server)  => write!(f, "server already registered: {}", server),
-            DBusError::NoSuchServer(ref server)             => write!(f, "no such server: {}", server),
-            DBusError::PathAlreadyRegistered(ref path)      => write!(f, "path already registered: {}", path),
-            DBusError::NoSuchPath(ref path)                 => write!(f, "no such path: {}", path),
-            DBusError::ExtractArguments(ref dmerr)          => write!(f, "failed to extract arguments: {}", dmerr),
-            DBusError::InterfaceAlreadyRegistered(ref name) => write!(f, "interface already registered: {}", name),
-            DBusError::InterfaceMapFinalized(ref name)      => write!(f, "interface has been finalized; cannot add {}", name),
+            Error::InvalidReply(ref desc)               => write!(f, "invalid reply: {}", desc),
+            Error::ErrorMessage(ref error)              => write!(f, "dbus error: {:?}", error),
+            Error::NoServerName                         => write!(f, "listening server cannot handle methods"),
+            Error::ServerAlreadyRegistered(ref server)  => write!(f, "server already registered: {}", server),
+            Error::NoSuchServer(ref server)             => write!(f, "no such server: {}", server),
+            Error::PathAlreadyRegistered(ref path)      => write!(f, "path already registered: {}", path),
+            Error::NoSuchPath(ref path)                 => write!(f, "no such path: {}", path),
+            Error::ExtractArguments(ref dmerr)          => write!(f, "failed to extract arguments: {}", dmerr),
+            Error::InterfaceAlreadyRegistered(ref name) => write!(f, "interface already registered: {}", name),
+            Error::InterfaceMapFinalized(ref name)      => write!(f, "interface has been finalized; cannot add {}", name),
         }
     }
 }
 
-impl Error for DBusError {
+impl error::Error for Error {
     fn description(&self) -> &str {
         "D-Bus error"
     }
 
-    fn cause(&self) -> Option<&Error> {
+    fn cause(&self) -> Option<&error::Error> {
         match *self {
-            DBusError::ErrorMessage(ref error) => Some(error),
+            Error::ErrorMessage(ref error) => Some(error),
             _ => None,
         }
     }
 }
 
-impl From<connection::Error> for DBusError {
+impl From<connection::Error> for Error {
     fn from(error: connection::Error) -> Self {
-        DBusError::ErrorMessage(error)
+        Error::ErrorMessage(error)
     }
 }
 
-impl From<demarshal::DemarshalError> for DBusError {
+impl From<demarshal::DemarshalError> for Error {
     fn from(error: demarshal::DemarshalError) -> Self {
-        DBusError::ExtractArguments(error)
+        Error::ExtractArguments(error)
     }
 }

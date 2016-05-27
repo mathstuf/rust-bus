@@ -4,57 +4,57 @@ use self::dbus_bytestream::message;
 extern crate dbus_serialize;
 use self::dbus_serialize::types::Variant;
 
-use super::error::DBusError;
-use super::value::{DBusBasicValue, DBusMarshal, DBusValue};
+use super::error::Error;
+use super::value::{BasicValue, Marshal, Value};
 
 #[derive(Debug)]
-pub struct DBusMessage {
+pub struct Message {
     message: message::Message,
 }
 
-pub struct DBusCallHeaders {
+pub struct CallHeaders {
     pub interface: String,
     pub method: String,
 }
-pub struct DBusSignalHeaders {
+pub struct SignalHeaders {
     pub interface: String,
     pub object: String,
     pub method: String,
 }
 
-impl DBusMessage {
-    pub fn new(message: message::Message) -> DBusMessage {
-        DBusMessage {
+impl Message {
+    pub fn new(message: message::Message) -> Message {
+        Message {
             message: message,
         }
     }
 
-    pub fn new_method_call(dest: &str, path: &str, iface: &str, method: &str) -> DBusMessage {
-        DBusMessage {
+    pub fn new_method_call(dest: &str, path: &str, iface: &str, method: &str) -> Message {
+        Message {
             message: message::create_method_call(dest, path, iface, method),
         }
     }
 
-    pub fn new_signal(path: &str, iface: &str, method: &str) -> DBusMessage {
-        DBusMessage {
+    pub fn new_signal(path: &str, iface: &str, method: &str) -> Message {
+        Message {
             message: message::create_signal(path, iface, method),
         }
     }
 
-    pub fn error_message(&self, name: &str) -> DBusMessage {
-        DBusMessage {
+    pub fn error_message(&self, name: &str) -> Message {
+        Message {
             message: message::create_error(name, self.message.serial),
         }
     }
 
-    pub fn return_message(&self) -> DBusMessage {
-        DBusMessage {
+    pub fn return_message(&self) -> Message {
+        Message {
             message: message::create_method_return(self.message.serial),
         }
     }
 
-    pub fn add_argument(self, arg: &DBusMarshal) -> DBusMessage {
-        DBusMessage {
+    pub fn add_argument(self, arg: &Marshal) -> Message {
+        Message {
             message: self.message.add_arg(arg),
         }
     }
@@ -72,7 +72,7 @@ impl DBusMessage {
     }
 
     fn _extract_string(v: &Variant) -> Option<String> {
-        if let DBusValue::BasicValue(DBusBasicValue::String(ref s)) = *v.object {
+        if let Value::BasicValue(BasicValue::String(ref s)) = *v.object {
             Some(s.clone())
         } else {
             None
@@ -96,14 +96,14 @@ impl DBusMessage {
         Self::_get_header_string(&self.message, message::HEADER_FIELD_MEMBER)
     }
 
-    pub fn values(&self) -> Result<Option<Vec<DBusValue>>, DBusError> {
+    pub fn values(&self) -> Result<Option<Vec<Value>>, Error> {
         Ok(try!(self.message.get_body()))
     }
 
-    pub fn call_headers(&self) -> Option<DBusCallHeaders> {
+    pub fn call_headers(&self) -> Option<CallHeaders> {
         self.interface().and_then(|interface| {
             self.member().map(|method| {
-                DBusCallHeaders {
+                CallHeaders {
                     interface: interface,
                     method: method,
                 }
@@ -111,11 +111,11 @@ impl DBusMessage {
         })
     }
 
-    pub fn signal_headers(&self) -> Option<DBusSignalHeaders> {
+    pub fn signal_headers(&self) -> Option<SignalHeaders> {
         self.interface().and_then(|interface| {
             self.path().and_then(|object| {
                 self.member().map(|method| {
-                    DBusSignalHeaders {
+                    SignalHeaders {
                         interface: interface,
                         object: object,
                         method: method,

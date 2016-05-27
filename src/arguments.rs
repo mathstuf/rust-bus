@@ -1,36 +1,36 @@
-use super::interface::DBusErrorMessage;
-use super::message::DBusMessage;
-use super::value::{DBusBasicValue, DBusValue};
+use super::interface::ErrorMessage;
+use super::message::Message;
+use super::value::{BasicValue, Value};
 
-pub struct DBusArguments {
-    values: Vec<DBusValue>,
+pub struct Arguments {
+    values: Vec<Value>,
 }
 
-impl DBusArguments {
-    pub fn new(msg: &DBusMessage) -> Result<DBusArguments, DBusErrorMessage> {
-        Ok(DBusArguments {
+impl Arguments {
+    pub fn new(msg: &Message) -> Result<Arguments, ErrorMessage> {
+        Ok(Arguments {
             values: try!(msg.values().ok().and_then(|x| x).ok_or(Self::invalid_arguments())),
         })
     }
 
-    pub fn extract(&self, index: usize) -> Result<&DBusValue, DBusErrorMessage> {
+    pub fn extract(&self, index: usize) -> Result<&Value, ErrorMessage> {
         self.values.get(index).ok_or(Self::invalid_argument(index))
     }
 
-    pub fn extract_string(&self, index: usize) -> Result<&String, DBusErrorMessage> {
+    pub fn extract_string(&self, index: usize) -> Result<&String, ErrorMessage> {
         let value = try!(self.extract(index));
-        if let &DBusValue::BasicValue(DBusBasicValue::String(ref s)) = value {
+        if let &Value::BasicValue(BasicValue::String(ref s)) = value {
             Ok(s)
         } else {
             Err(Self::invalid_argument(index))
         }
     }
 
-    fn invalid_arguments() -> DBusErrorMessage {
-        DBusErrorMessage::new("org.freedesktop.DBus.Error.InvalidArgs", "invalid arguments")
+    fn invalid_arguments() -> ErrorMessage {
+        ErrorMessage::new("org.freedesktop.DBus.Error.InvalidArgs", "invalid arguments")
     }
 
-    fn invalid_argument(index: usize) -> DBusErrorMessage {
-        DBusErrorMessage::new("org.freedesktop.DBus.Error.InvalidArgs", &format!("invalid argument at {}", index))
+    fn invalid_argument(index: usize) -> ErrorMessage {
+        ErrorMessage::new("org.freedesktop.DBus.Error.InvalidArgs", &format!("invalid argument at {}", index))
     }
 }
