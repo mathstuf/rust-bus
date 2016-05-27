@@ -19,6 +19,7 @@ bitflags! {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub enum RequestNameReply {
     PrimaryOwner,
     InQueue,
@@ -26,6 +27,7 @@ pub enum RequestNameReply {
     AlreadyOwner,
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub enum ReleaseNameReply {
     Released,
     NonExistent,
