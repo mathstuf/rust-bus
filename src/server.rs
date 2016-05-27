@@ -93,7 +93,7 @@ impl DBusServer {
 
         match self.objects.remove(path) {
             Some(_) => {
-                //TODO: emit InterfacesRemoved signal
+                // TODO: emit InterfacesRemoved signal
 
                 Ok(self)
             },
