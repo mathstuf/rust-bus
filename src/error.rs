@@ -17,7 +17,7 @@ pub enum Error {
     NoSuchPath(String),
     ExtractArguments(demarshal::DemarshalError),
     InterfaceAlreadyRegistered(String),
-    InterfaceMapFinalized(String),
+    InterfacesFinalized(String),
 }
 
 impl Display for Error {
@@ -32,7 +32,7 @@ impl Display for Error {
             Error::NoSuchPath(ref path)                 => write!(f, "no such path: {}", path),
             Error::ExtractArguments(ref dmerr)          => write!(f, "failed to extract arguments: {}", dmerr),
             Error::InterfaceAlreadyRegistered(ref name) => write!(f, "interface already registered: {}", name),
-            Error::InterfaceMapFinalized(ref name)      => write!(f, "interface has been finalized; cannot add {}", name),
+            Error::InterfacesFinalized(ref name)        => write!(f, "interfaces have been finalized; cannot add {}", name),
         }
     }
 }

@@ -471,7 +471,7 @@ impl Interfaces {
     #[allow(unused_mut)]
     pub fn add_interface(mut self, name: &str, iface: Interface) -> Result<Self, Error> {
         if self.finalized {
-            return Err(Error::InterfaceMapFinalized(name.to_owned()));
+            return Err(Error::InterfacesFinalized(name.to_owned()));
         }
 
         {
