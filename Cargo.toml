@@ -11,8 +11,7 @@ Convenience wrappers for exposing a D-Bus interface.
 dbus-serialize = "~0.1.1"
 
 [dependencies.dbus-bytestream]
-git = "https://github.com/mathstuf/dbus-bytestream.git"
-branch = "impl-error-trait"
+git = "https://github.com/srwalter/dbus-bytestream.git"
 
 [dependencies.machine-id]
 git = "https://github.com/mathstuf/rust-machine-id"
