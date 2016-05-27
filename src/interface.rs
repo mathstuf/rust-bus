@@ -360,7 +360,7 @@ impl IntrospectableInterface {
         let xml = format!(concat!(
             r#"<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"\n"#,
             r#" "http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">\n"#,
-            r#"<!-- Rust EZ-DBus {} -->"#,
+            r#"<!-- rust-bus {} -->"#,
             r#"<node>\n"#,
             r#"{}"#, // interface
             r#"{}"#, // children
