@@ -1,10 +1,10 @@
 [package]
-name = "rust-ez-dbus"
+name = "rust-bus"
 version = "0.12.0"
 authors = ["Ben Boeckel <mathstuf@gmail.com>"]
 license = "BSD"
 description = """
-Convenience wrappers for exposing a D-Bus interface.
+Library for exposing a D-Bus interface.
 """
 
 [dependencies]
@@ -17,5 +17,5 @@ git = "https://github.com/srwalter/dbus-bytestream.git"
 git = "https://github.com/mathstuf/rust-machine-id"
 
 [lib]
-name = "ez_dbus"
+name = "bus"
 path = "src/lib.rs"
