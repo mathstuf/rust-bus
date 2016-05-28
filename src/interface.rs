@@ -1,3 +1,6 @@
+extern crate core;
+use self::core::ops::DerefMut;
+
 extern crate machine_id;
 use self::machine_id::MachineId;
 
@@ -58,7 +61,7 @@ impl ErrorMessage {
 }
 
 pub type MethodResult = Result<Vec<Value>, ErrorMessage>;
-pub type MethodHandler = Box<FnMut(&mut Message) -> MethodResult>;
+pub type MethodHandler = Rc<RefCell<FnMut(&mut Message) -> MethodResult>>;
 
 pub struct Method {
     in_args: Vec<Argument>,
@@ -73,7 +76,7 @@ impl Method {
         Method {
             in_args: vec![],
             out_args: vec![],
-            cb: Box::new(cb),
+            cb: Rc::new(RefCell::new(cb)),
             anns: vec![],
         }
     }
@@ -523,14 +526,15 @@ impl Interfaces {
         msg.call_headers().and_then(|hdrs| {
             let iface_name = hdrs.interface;
             let method_name = hdrs.method;
-            let map_ref = &mut self.map.borrow_mut();
-            let method = map_ref.get_mut(&iface_name)
-                                .and_then(|iface| iface.methods.get_mut(&method_name));
+            let map_ref = &self.map.borrow();
+            let method = map_ref.get(&iface_name)
+                                .and_then(|iface| iface.methods.get(&method_name));
 
             method.map(|method| {
                 // TODO: Verify input argument signature.
 
-                let msg = match (method.cb)(msg) {
+                let mut cb = method.cb.borrow_mut();
+                let msg = match cb.deref_mut()(msg) {
                     Ok(vals) => {
                         vals.iter().fold(msg.return_message(), |msg, val| {
                             msg.add_argument(val)
