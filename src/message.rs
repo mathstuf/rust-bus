@@ -9,7 +9,7 @@ use super::value::{BasicValue, Marshal, Value};
 
 #[derive(Debug)]
 pub struct Message {
-    message: message::Message,
+    pub message: message::Message,
 }
 
 pub enum MessageType {
@@ -95,9 +95,5 @@ impl Message {
 
     pub fn values(&self) -> Result<Option<Vec<Value>>, Error> {
         Ok(try!(self.message.get_body()))
-    }
-
-    pub fn extract(self) -> message::Message {
-        self.message
     }
 }

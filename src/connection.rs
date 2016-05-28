@@ -59,7 +59,7 @@ impl Connection {
                 "RequestName")
             .add_argument(&name)
             .add_argument(&flags.bits);
-        if let Some(mut results) = try!(self.conn.call_sync(msg.extract())) {
+        if let Some(mut results) = try!(self.conn.call_sync(msg.message)) {
             if let Some(Value::BasicValue(BasicValue::Uint32(r))) = results.pop() {
                 match r {
                     1 => Ok(RequestNameReply::PrimaryOwner),
@@ -83,7 +83,7 @@ impl Connection {
                 "org.freedesktop.DBus",
                 "ReleaseName")
             .add_argument(&name);
-        if let Some(mut results) = try!(self.conn.call_sync(msg.extract())) {
+        if let Some(mut results) = try!(self.conn.call_sync(msg.message)) {
             if let Some(Value::BasicValue(BasicValue::Uint32(r))) = results.pop() {
                 match r {
                     1 => Ok(ReleaseNameReply::Released),
@@ -106,12 +106,12 @@ impl Connection {
                 "org.freedesktop.DBus",
                 "AddMatch")
             .add_argument(&match_rule);
-        try!(self.conn.call_sync(msg.extract()));
+        try!(self.conn.call_sync(msg.message));
         Ok(())
     }
 
     pub fn send(&self, msg: Message) -> Result<u32, Error> {
-        Ok(try!(self.conn.send(msg.extract())))
+        Ok(try!(self.conn.send(msg.message)))
     }
 
     pub fn iter(&self) -> Messages {
