@@ -23,7 +23,7 @@ pub struct Argument {
 }
 
 impl Argument {
-    pub fn new(name: &str, sig: &str) -> Argument {
+    pub fn new(name: &str, sig: &str) -> Self {
         Argument {
             name: name.to_owned(),
             signature: sig.to_owned(),
@@ -38,7 +38,7 @@ pub struct Annotation {
 type Annotations = Vec<Annotation>;
 
 impl Annotation {
-    pub fn new(name: &str, value: &str) -> Annotation {
+    pub fn new(name: &str, value: &str) -> Self {
         Annotation {
             name: name.to_owned(),
             value: value.to_owned(),
@@ -52,7 +52,7 @@ pub struct ErrorMessage {
 }
 
 impl ErrorMessage {
-    pub fn new(name: &str, message: &str) -> ErrorMessage {
+    pub fn new(name: &str, message: &str) -> Self {
         ErrorMessage {
             name: name.to_owned(),
             message: message.to_owned(),
@@ -76,7 +76,7 @@ pub struct Method {
 }
 
 impl Method {
-    pub fn new<F>(cb: F) -> Method
+    pub fn new<F>(cb: F) -> Self
         where F: FnMut(&mut Message) -> MethodResult + 'static {
         Method {
             in_args: vec![],
@@ -86,19 +86,19 @@ impl Method {
         }
     }
 
-    pub fn add_argument(mut self, arg: Argument) -> Method {
+    pub fn add_argument(mut self, arg: Argument) -> Self {
         self.in_args.push(arg);
 
         self
     }
 
-    pub fn add_result(mut self, arg: Argument) -> Method {
+    pub fn add_result(mut self, arg: Argument) -> Self {
         self.out_args.push(arg);
 
         self
     }
 
-    pub fn annotate(mut self, ann: Annotation) -> Method {
+    pub fn annotate(mut self, ann: Annotation) -> Self {
         self.anns.push(ann);
 
         self
@@ -134,7 +134,7 @@ pub struct Property {
 }
 
 impl Property {
-    fn new(sig: Signature, access: PropertyAccess) -> Property {
+    fn new(sig: Signature, access: PropertyAccess) -> Self {
         Property {
             signature: sig,
             access: access,
@@ -142,19 +142,19 @@ impl Property {
         }
     }
 
-    pub fn new_ro(sig: Signature, access: Box<PropertyReadHandler>) -> Property {
+    pub fn new_ro(sig: Signature, access: Box<PropertyReadHandler>) -> Self {
         Property::new(sig, PropertyAccess::RO(access))
     }
 
-    pub fn new_rw(sig: Signature, access: Box<PropertyReadWriteHandler>) -> Property {
+    pub fn new_rw(sig: Signature, access: Box<PropertyReadWriteHandler>) -> Self {
         Property::new(sig, PropertyAccess::RW(access))
     }
 
-    pub fn new_wo(sig: Signature, access: Box<PropertyWriteHandler>) -> Property {
+    pub fn new_wo(sig: Signature, access: Box<PropertyWriteHandler>) -> Self {
         Property::new(sig, PropertyAccess::WO(access))
     }
 
-    pub fn annotate(mut self, ann: Annotation) -> Property {
+    pub fn annotate(mut self, ann: Annotation) -> Self {
         self.anns.push(ann);
 
         self
@@ -167,20 +167,20 @@ pub struct Signal {
 }
 
 impl Signal {
-    pub fn new() -> Signal {
+    pub fn new() -> Self {
         Signal {
             args: vec![],
             anns: vec![],
         }
     }
 
-    pub fn add_argument(mut self, arg: Argument) -> Signal {
+    pub fn add_argument(mut self, arg: Argument) -> Self {
         self.args.push(arg);
 
         self
     }
 
-    pub fn annotate(mut self, ann: Annotation) -> Signal {
+    pub fn annotate(mut self, ann: Annotation) -> Self {
         self.anns.push(ann);
 
         self
@@ -194,7 +194,7 @@ pub struct Interface {
 }
 
 impl Interface {
-    pub fn new() -> Interface {
+    pub fn new() -> Self {
         Interface {
             methods: Map::new(),
             properties: Map::new(),
@@ -202,13 +202,13 @@ impl Interface {
         }
     }
 
-    pub fn add_method(mut self, name: &str, method: Method) -> Interface {
+    pub fn add_method(mut self, name: &str, method: Method) -> Self {
         self.methods.insert(name.to_owned(), method);
 
         self
     }
 
-    pub fn add_property(mut self, name: &str, property: Property) -> Interface {
+    pub fn add_property(mut self, name: &str, property: Property) -> Self {
         self.properties.insert(name.to_owned(), property);
 
         self
@@ -218,7 +218,7 @@ impl Interface {
         self.properties.get(name)
     }
 
-    pub fn add_signal(mut self, name: &str, signal: Signal) -> Interface {
+    pub fn add_signal(mut self, name: &str, signal: Signal) -> Self {
         self.signals.insert(name.to_owned(), signal);
 
         self

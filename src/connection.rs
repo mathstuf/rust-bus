@@ -39,13 +39,13 @@ pub struct Messages<'a> {
 }
 
 impl Connection {
-    pub fn session_new() -> Result<Connection, Error> {
+    pub fn session_new() -> Result<Self, Error> {
         Ok(Connection {
             conn: try!(connection::Connection::connect_session()),
         })
     }
 
-    pub fn system_new() -> Result<Connection, Error> {
+    pub fn system_new() -> Result<Self, Error> {
         Ok(Connection {
             conn: try!(connection::Connection::connect_system()),
         })

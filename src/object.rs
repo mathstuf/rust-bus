@@ -10,7 +10,7 @@ pub struct Object {
 }
 
 impl Object {
-    pub fn new(path: &str, interfaces: Interfaces, children: ChildrenList) -> Result<Object, Error> {
+    pub fn new(path: &str, interfaces: Interfaces, children: ChildrenList) -> Result<Self, Error> {
         Ok(Object {
             path: path.to_owned(),
             interfaces: try!(interfaces.finalize(children)),

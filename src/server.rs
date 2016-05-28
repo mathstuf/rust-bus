@@ -32,7 +32,7 @@ pub struct Server {
 }
 
 impl Server {
-    pub fn new_listener(conn: Rc<Connection>, name: &str) -> Result<Server, Error> {
+    pub fn new_listener(conn: Rc<Connection>, name: &str) -> Result<Self, Error> {
         Ok(Server {
             conn: conn,
             name: name.to_owned(),
@@ -44,7 +44,7 @@ impl Server {
         })
     }
 
-    pub fn new(conn: Rc<Connection>, name: &str) -> Result<Server, Error> {
+    pub fn new(conn: Rc<Connection>, name: &str) -> Result<Self, Error> {
         try!(conn.request_name(name, DO_NOT_QUEUE));
 
         // TODO: add root object

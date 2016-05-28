@@ -14,7 +14,7 @@ pub struct Runner {
 }
 
 impl Runner {
-    pub fn new(conn: Connection) -> Result<Runner, Error> {
+    pub fn new(conn: Connection) -> Result<Self, Error> {
         Ok(Runner {
             conn: Rc::new(conn),
 

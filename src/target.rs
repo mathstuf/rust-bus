@@ -14,7 +14,7 @@ struct SignalHeaders {
 }
 
 impl Target {
-    pub fn new<I: ToString, O: ToString, M: ToString>(interface: I, object: O, method: M) -> Target {
+    pub fn new<I: ToString, O: ToString, M: ToString>(interface: I, object: O, method: M) -> Self {
         Target {
             interface: interface.to_string(),
             object: object.to_string(),
@@ -22,13 +22,13 @@ impl Target {
         }
     }
 
-    pub fn extract(m: &Message) -> Option<Target> {
+    pub fn extract(m: &Message) -> Option<Self> {
         SignalHeaders::new(m).map(|hdrs| {
-            Target::new(hdrs.interface, hdrs.object, hdrs.method)
+            Self::new(hdrs.interface, hdrs.object, hdrs.method)
         })
     }
 
-    pub fn namespace_eq(&self, t: &Target) -> bool {
+    pub fn namespace_eq(&self, t: &Self) -> bool {
         self.interface == t.interface &&
         self.method == t.method &&
         t.object.starts_with(&format!("{}/", self.object))

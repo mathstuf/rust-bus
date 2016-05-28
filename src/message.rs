@@ -21,37 +21,37 @@ pub enum MessageType {
 }
 
 impl Message {
-    pub fn new(message: message::Message) -> Message {
+    pub fn new(message: message::Message) -> Self {
         Message {
             message: message,
         }
     }
 
-    pub fn new_method_call(dest: &str, path: &str, iface: &str, method: &str) -> Message {
+    pub fn new_method_call(dest: &str, path: &str, iface: &str, method: &str) -> Self {
         Message {
             message: message::create_method_call(dest, path, iface, method),
         }
     }
 
-    pub fn new_signal(path: &str, iface: &str, method: &str) -> Message {
+    pub fn new_signal(path: &str, iface: &str, method: &str) -> Self {
         Message {
             message: message::create_signal(path, iface, method),
         }
     }
 
-    pub fn error_message(&self, name: &str) -> Message {
+    pub fn error_message(&self, name: &str) -> Self {
         Message {
             message: message::create_error(name, self.message.serial),
         }
     }
 
-    pub fn return_message(&self) -> Message {
+    pub fn return_message(&self) -> Self {
         Message {
             message: message::create_method_return(self.message.serial),
         }
     }
 
-    pub fn add_argument(self, arg: &Marshal) -> Message {
+    pub fn add_argument(self, arg: &Marshal) -> Self {
         Message {
             message: self.message.add_arg(arg),
         }
