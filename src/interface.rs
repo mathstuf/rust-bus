@@ -191,6 +191,7 @@ pub struct Interface {
     methods: Map<Method>,
     properties: Map<Property>,
     signals: Map<Signal>,
+    anns: Annotations,
 }
 
 impl Interface {
@@ -199,6 +200,7 @@ impl Interface {
             methods: Map::new(),
             properties: Map::new(),
             signals: Map::new(),
+            anns: vec![],
         }
     }
 
@@ -220,6 +222,12 @@ impl Interface {
 
     pub fn add_signal(mut self, name: &str, signal: Signal) -> Self {
         self.signals.insert(name.to_owned(), signal);
+
+        self
+    }
+
+    pub fn annotate(mut self, ann: Annotation) -> Self {
+        self.anns.push(ann);
 
         self
     }
@@ -462,12 +470,13 @@ impl IntrospectableInterface {
 
     fn _introspect_interface(indent: &str, name: &String, iface: &Interface) -> String {
         let new_indent = format!("{} ", indent);
-        format!(r#"{}<interface name="{}">\n{}{}{}{}</interface>\n"#,
+        format!(r#"{}<interface name="{}">\n{}{}{}{}{}</interface>\n"#,
             indent,
             name,
             Self::_to_string_map(&iface.properties, |k, v| Self::_introspect_property(&new_indent, k, v)),
             Self::_to_string_map(&iface.methods, |k, v| Self::_introspect_method(&new_indent, k, v)),
             Self::_to_string_map(&iface.signals, |k, v| Self::_introspect_signal(&new_indent, k, v)),
+            Self::_to_string_list(&iface.anns, |t| Self::_introspect_annotation(&new_indent, t)),
             indent)
     }
 
