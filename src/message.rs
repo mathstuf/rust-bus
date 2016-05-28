@@ -12,12 +12,6 @@ pub struct Message {
     message: message::Message,
 }
 
-pub struct SignalHeaders {
-    pub interface: String,
-    pub object: String,
-    pub method: String,
-}
-
 pub enum MessageType {
     Error,
     Invalid,
@@ -101,20 +95,6 @@ impl Message {
 
     pub fn values(&self) -> Result<Option<Vec<Value>>, Error> {
         Ok(try!(self.message.get_body()))
-    }
-
-    pub fn signal_headers(&self) -> Option<SignalHeaders> {
-        self.interface().and_then(|interface| {
-            self.path().and_then(|object| {
-                self.member().map(|method| {
-                    SignalHeaders {
-                        interface: interface,
-                        object: object,
-                        method: method,
-                    }
-                })
-            })
-        })
     }
 
     pub fn extract(self) -> message::Message {

@@ -7,6 +7,12 @@ pub struct Target {
     pub method: String,
 }
 
+struct SignalHeaders {
+    interface: String,
+    object: String,
+    method: String,
+}
+
 impl Target {
     pub fn new<I: ToString, O: ToString, M: ToString>(interface: I, object: O, method: M) -> Target {
         Target {
@@ -17,7 +23,7 @@ impl Target {
     }
 
     pub fn extract(m: &Message) -> Option<Target> {
-        m.signal_headers().map(|hdrs| {
+        SignalHeaders::new(m).map(|hdrs| {
             Target::new(hdrs.interface, hdrs.object, hdrs.method)
         })
     }
@@ -26,5 +32,21 @@ impl Target {
         self.interface == t.interface &&
         self.method == t.method &&
         t.object.starts_with(&format!("{}/", self.object))
+    }
+}
+
+impl SignalHeaders {
+    pub fn new(m: &Message) -> Option<Self> {
+        m.interface().and_then(|interface| {
+            m.path().and_then(|object| {
+                m.member().map(|method| {
+                    SignalHeaders {
+                        interface: interface,
+                        object: object,
+                        method: method,
+                    }
+                })
+            })
+        })
     }
 }
