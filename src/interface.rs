@@ -7,7 +7,7 @@ use self::machine_id::MachineId;
 use super::arguments::Arguments;
 use super::connection::Connection;
 use super::error::Error;
-use super::message::Message;
+use super::message::{Message, MessageType};
 use super::value::{BasicValue, Dictionary, Signature, Value};
 
 use std::cell::{Ref, RefCell};

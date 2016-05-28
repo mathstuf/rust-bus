@@ -22,6 +22,14 @@ pub struct SignalHeaders {
     pub method: String,
 }
 
+pub enum MessageType {
+    Error,
+    Invalid,
+    MethodCall,
+    MethodReturn,
+    Signal,
+}
+
 impl Message {
     pub fn new(message: message::Message) -> Message {
         Message {
@@ -59,16 +67,23 @@ impl Message {
         }
     }
 
-    pub fn is_signal(&self) -> bool {
-        self.message.message_type == message::MESSAGE_TYPE_SIGNAL
-    }
-
-    pub fn is_method_call(&self) -> bool {
-        self.message.message_type == message::MESSAGE_TYPE_METHOD_CALL
+    pub fn message_type(&self) -> MessageType {
+        match self.message.message_type {
+            message::MESSAGE_TYPE_ERROR         => MessageType::Error,
+            message::MESSAGE_TYPE_INVALID       => MessageType::Invalid,
+            message::MESSAGE_TYPE_METHOD_CALL   => MessageType::MethodCall,
+            message::MESSAGE_TYPE_METHOD_RETURN => MessageType::MethodReturn,
+            message::MESSAGE_TYPE_SIGNAL        => MessageType::Signal,
+            _                                   => MessageType::Invalid,
+        }
     }
 
     pub fn should_handle(&self) -> bool {
-        self.is_signal() || self.is_method_call()
+        match self.message_type() {
+            MessageType::MethodCall => true,
+            MessageType::Signal     => true,
+            _                       => false,
+        }
     }
 
     fn _extract_string(v: &Variant) -> Option<String> {

@@ -1,7 +1,7 @@
 use super::connection::{Connection, ReleaseNameReply, DO_NOT_QUEUE};
 use super::error::Error;
 use super::interface::Interfaces;
-use super::message::Message;
+use super::message::{Message, MessageType};
 use super::object::Object;
 use super::target::Target;
 
@@ -126,12 +126,10 @@ impl Server {
     }
 
     pub fn handle_message<'b>(&mut self, m: &'b mut Message) -> Option<&'b mut Message> {
-        if m.is_signal() {
-            Some(self._match_signal(m))
-        } else if m.is_method_call() {
-            self._call_method(m)
-        } else {
-            Some(m)
+        match m.message_type() {
+            MessageType::MethodCall => self._call_method(m),
+            MessageType::Signal     => Some(self._match_signal(m)),
+            _                       => Some(m),
         }
     }
 

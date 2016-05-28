@@ -31,6 +31,7 @@ pub use interface::PropertyReadWriteHandler;
 pub use interface::PropertyWriteHandler;
 pub use interface::Signal;
 pub use message::Message;
+pub use message::MessageType;
 pub use object::Object;
 pub use runner::Runner;
 pub use server::Server;

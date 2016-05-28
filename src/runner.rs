@@ -1,5 +1,6 @@
 use super::connection::Connection;
 use super::error::Error;
+use super::message::MessageType;
 use super::server::Server;
 
 use std::collections::btree_map::{BTreeMap, Entry};
@@ -55,7 +56,7 @@ impl Runner {
         // TODO: add dummy objects to servers
 
         self.conn.iter().fold((), |_, mut message| {
-            if message.is_signal() {
+            if let MessageType::Signal = message.message_type() {
                 for listener in listeners.iter_mut() {
                     listener.handle_message(&mut message);
                 }
