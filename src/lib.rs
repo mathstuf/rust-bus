@@ -20,6 +20,8 @@ pub use connection::RequestNameReply;
 pub use error::Error;
 pub use interface::Annotation;
 pub use interface::Argument;
+pub use interface::ChildrenList;
+pub use interface::ErrorMessage;
 pub use interface::Interface;
 pub use interface::Interfaces;
 pub use interface::Method;
