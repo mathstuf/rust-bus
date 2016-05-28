@@ -78,14 +78,6 @@ impl Message {
         }
     }
 
-    pub fn should_handle(&self) -> bool {
-        match self.message_type() {
-            MessageType::MethodCall => true,
-            MessageType::Signal     => true,
-            _                       => false,
-        }
-    }
-
     fn _extract_string(v: &Variant) -> Option<String> {
         if let Value::BasicValue(BasicValue::String(ref s)) = *v.object {
             Some(s.clone())

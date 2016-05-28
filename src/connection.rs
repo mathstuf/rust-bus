@@ -4,7 +4,7 @@ extern crate dbus_bytestream;
 use self::dbus_bytestream::connection;
 
 use super::error::Error;
-use super::message::Message;
+use super::message::{Message, MessageType};
 use super::value::{BasicValue, Value};
 
 pub struct Connection {
@@ -121,6 +121,14 @@ impl Connection {
     }
 }
 
+fn _should_handle(message: &Message) -> bool {
+    match message.message_type() {
+        MessageType::MethodCall => true,
+        MessageType::Signal     => true,
+        _                       => false,
+    }
+}
+
 impl<'a> Iterator for Messages<'a> {
     type Item = Message;
 
@@ -129,7 +137,7 @@ impl<'a> Iterator for Messages<'a> {
         match res {
             Ok(message) => {
                 let dbus_message = Message::new(message);
-                if dbus_message.should_handle() {
+                if _should_handle(&dbus_message) {
                     Some(dbus_message)
                 } else {
                     None
