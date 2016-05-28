@@ -523,7 +523,11 @@ impl Interfaces {
         msg.call_headers().and_then(|hdrs| {
             let iface_name = hdrs.interface;
             let method_name = hdrs.method;
-            self.map.borrow_mut().get_mut(&iface_name).and_then(|iface| iface.methods.get_mut(&method_name)).map(|method| {
+            let map_ref = &mut self.map.borrow_mut();
+            let method = map_ref.get_mut(&iface_name)
+                                .and_then(|iface| iface.methods.get_mut(&method_name));
+
+            method.map(|method| {
                 // TODO: Verify input argument signature.
 
                 let msg = match (method.cb)(msg) {
