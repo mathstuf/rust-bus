@@ -478,6 +478,25 @@ impl IntrospectableInterface {
     }
 }
 
+struct CallHeaders {
+    interface: String,
+    method: String,
+}
+
+impl CallHeaders {
+    pub fn new(msg: &Message) -> Option<Self> {
+        msg.interface().and_then(|interface| {
+            msg.member().map(|method| {
+                CallHeaders {
+                    interface: interface,
+                    method: method,
+                }
+            })
+        })
+    }
+
+}
+
 impl Interfaces {
     pub fn new() -> Self {
         Interfaces {
@@ -551,7 +570,7 @@ impl Interfaces {
     }
 
     pub fn handle(&self, conn: &Connection, msg: &mut Message) -> Option<Result<(), ()>> {
-        msg.call_headers().and_then(|hdrs| {
+        CallHeaders::new(msg).and_then(|hdrs| {
             let iface_name = hdrs.interface;
             let method_name = hdrs.method;
             let map_ref = &self.map.borrow();

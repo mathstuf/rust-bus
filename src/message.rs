@@ -12,10 +12,6 @@ pub struct Message {
     message: message::Message,
 }
 
-pub struct CallHeaders {
-    pub interface: String,
-    pub method: String,
-}
 pub struct SignalHeaders {
     pub interface: String,
     pub object: String,
@@ -105,17 +101,6 @@ impl Message {
 
     pub fn values(&self) -> Result<Option<Vec<Value>>, Error> {
         Ok(try!(self.message.get_body()))
-    }
-
-    pub fn call_headers(&self) -> Option<CallHeaders> {
-        self.interface().and_then(|interface| {
-            self.member().map(|method| {
-                CallHeaders {
-                    interface: interface,
-                    method: method,
-                }
-            })
-        })
     }
 
     pub fn signal_headers(&self) -> Option<SignalHeaders> {
