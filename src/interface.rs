@@ -553,3 +553,35 @@ impl Interfaces {
         })
     }
 }
+
+#[test]
+fn empty_interface() {
+    use super::connection::RequestNameFlags;
+    use super::connection::RequestNameReply;
+
+    let ifaces = Interfaces::new();
+    let children = Rc::new(RefCell::new(vec![]));
+
+    assert_eq!(ifaces.finalized, false);
+
+    let ifaces = ifaces.finalize(children.clone()).unwrap();
+
+    assert_eq!(ifaces.finalized, true);
+
+    {
+        let map = ifaces.map.borrow();
+        assert_eq!(map.len(), 3);
+        assert_eq!(map.contains_key("org.freedesktop.DBus.Peer"), true);
+        assert_eq!(map.contains_key("org.freedesktop.DBus.Properties"), true);
+        assert_eq!(map.contains_key("org.freedesktop.DBus.Introspectable"), true);
+    }
+
+    let conn = Connection::session_new().unwrap();
+    let name = "net.benboeckel.test.rustbus";
+
+    assert_eq!(conn.request_name(name, RequestNameFlags::empty()).unwrap(), RequestNameReply::PrimaryOwner);
+
+    let mut msg = Message::new_method_call(name, "/", "org.freedesktop.DBus.Introspectable", "Introspect");
+
+    ifaces.handle(&conn, &mut msg);
+}
