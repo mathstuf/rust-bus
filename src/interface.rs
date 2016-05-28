@@ -58,6 +58,11 @@ impl ErrorMessage {
             message: message.to_owned(),
         }
     }
+
+    fn to_message(self, msg: &Message) -> Message {
+        msg.error_message(&self.name)
+           .add_argument(&self.message)
+    }
 }
 
 pub type MethodResult = Result<Vec<Value>, ErrorMessage>;
@@ -522,6 +527,29 @@ impl Interfaces {
         Ok(self)
     }
 
+    fn _signature(args: &Vec<Argument>) -> String {
+        args.iter()
+            .map(|arg| arg.signature.clone())
+            .collect::<Vec<_>>()
+            .join("")
+    }
+
+    fn _msg_signature(msg: &Message) -> String {
+        msg.values().unwrap()
+           .map_or_else(|| "".to_owned(),
+                        |vs| vs.iter()
+                               .map(|v| v.get_signature().to_owned())
+                               .collect::<Vec<_>>()
+                               .join(""))
+    }
+
+    fn _check_signature(args: &Vec<Argument>, msg: &Message) -> bool {
+        let expect_sig = Self::_signature(args);
+        let actual_sig = Self::_msg_signature(msg);
+
+        expect_sig == actual_sig
+    }
+
     pub fn handle(&self, conn: &Connection, msg: &mut Message) -> Option<Result<(), ()>> {
         msg.call_headers().and_then(|hdrs| {
             let iface_name = hdrs.interface;
@@ -531,22 +559,44 @@ impl Interfaces {
                                 .and_then(|iface| iface.methods.get(&method_name));
 
             method.map(|method| {
-                // TODO: Verify input argument signature.
+                let res = if Self::_check_signature(&method.in_args, msg) {
+                    let mut cb = method.cb.borrow_mut();
 
-                let mut cb = method.cb.borrow_mut();
-                let msg = match cb.deref_mut()(msg) {
-                    Ok(vals) => {
-                        vals.iter().fold(msg.return_message(), |msg, val| {
-                            msg.add_argument(val)
-                        })
-                    },
-                    Err(err) => msg.error_message(&err.name)
-                                   .add_argument(&err.message),
+                    match cb.deref_mut()(msg) {
+                        Ok(vals) => {
+                            vals.iter().fold(msg.return_message(), |msg, val| {
+                                msg.add_argument(val)
+                            })
+                        },
+                        Err(err) => err.to_message(msg),
+                    }
+                } else {
+                    Arguments::invalid_arguments()
+                        .to_message(msg)
                 };
 
-                // TODO: Verify that the signature matches the return.
+                match res.message_type() {
+                    MessageType::Error          => (),
+                    MessageType::MethodReturn   => {
+                        let expect = Self::_signature(&method.out_args);
+                        let actual = Self::_msg_signature(&res);
 
-                conn.send(msg)
+                        if expect != actual {
+                            panic!("invalid return signature for: \
+                                    path: '{:?}' interface: '{}' method: '{}' \
+                                    expected: '{}' actual: '{}'",
+                                   msg.path(), iface_name, method_name,
+                                   expect, actual)
+                        };
+                    },
+                    _                           => {
+                        panic!("invalid return value for: \
+                                path: '{:?}' interface: '{}' method: '{}'",
+                               msg.path(), iface_name, method_name)
+                    },
+                };
+
+                conn.send(res)
                     .map(|_| ())
                     .map_err(|_| ())
             })

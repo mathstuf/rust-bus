@@ -26,7 +26,7 @@ impl Arguments {
         }
     }
 
-    fn invalid_arguments() -> ErrorMessage {
+    pub fn invalid_arguments() -> ErrorMessage {
         ErrorMessage::new("org.freedesktop.DBus.Error.InvalidArgs", "invalid arguments")
     }
 
