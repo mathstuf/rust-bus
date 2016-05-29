@@ -69,7 +69,7 @@ impl Server {
         &self.name
     }
 
-    pub fn add_object(&mut self, path: &str, iface_map: Interfaces) -> Result<&mut Self, Error> {
+    pub fn add_object(&mut self, path: &str, ifaces: Interfaces) -> Result<&mut Self, Error> {
         if !self.can_handle {
             return Err(Error::NoServerName);
         }
@@ -80,7 +80,7 @@ impl Server {
             Entry::Vacant(v)    => {
                 // TODO: store this
                 let children = Rc::new(RefCell::new(vec![]));
-                let obj = try!(Object::new(path, iface_map, children));
+                let obj = try!(Object::new(path, ifaces, children));
 
                 // TODO: emit InterfacesAdded signal
 
