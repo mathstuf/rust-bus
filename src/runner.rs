@@ -23,6 +23,7 @@ impl Runner {
         })
     }
 
+    // FIXME: Rename to `new_listener`?
     pub fn add_listener(&mut self, name: &str) -> Result<&mut Server, Error> {
         let listener = try!(Server::new_listener(self.conn.clone(), name));
 
@@ -31,6 +32,7 @@ impl Runner {
         Ok(self.listeners.last_mut().unwrap())
     }
 
+    // FIXME: Rename to `new_server`?
     pub fn add_server(&mut self, name: &str) -> Result<&mut Server, Error> {
         match self.servers.entry(name.to_owned()) {
             Entry::Vacant(v)    => {
@@ -49,6 +51,7 @@ impl Runner {
         }
     }
 
+    // FIXME: Allow this to hook into other event loops.
     pub fn run(&mut self) -> () {
         let listeners = &mut self.listeners;
         let servers = &mut self.servers;

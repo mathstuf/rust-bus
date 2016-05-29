@@ -39,6 +39,8 @@ pub struct Messages<'a> {
 }
 
 impl Connection {
+    // TODO: Expose other connection methods?
+
     pub fn session_new() -> Result<Self, Error> {
         Ok(Connection {
             conn: try!(connection::Connection::connect_session()),
@@ -52,6 +54,7 @@ impl Connection {
     }
 
     pub fn request_name(&self, name: &str, flags: RequestNameFlags) -> Result<RequestNameReply, Error> {
+        // TODO: Use an actual struct with an API for this.
         let msg = Message::new_method_call(
                 "org.freedesktop.DBus",
                 "/org/freedesktop/DBus",
@@ -77,6 +80,7 @@ impl Connection {
     }
 
     pub fn release_name(&self, name: &str) -> Result<ReleaseNameReply, Error> {
+        // TODO: Use an actual struct with an API for this.
         let msg = Message::new_method_call(
                 "org.freedesktop.DBus",
                 "/org/freedesktop/DBus",

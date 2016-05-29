@@ -24,6 +24,7 @@ pub struct Argument {
 
 impl Argument {
     pub fn new(name: &str, sig: &str) -> Self {
+        // TODO: make a builder for the signature type.
         Argument {
             name: name.to_owned(),
             signature: sig.to_owned(),

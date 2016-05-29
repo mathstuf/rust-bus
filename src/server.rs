@@ -47,6 +47,7 @@ impl Server {
     pub fn new(conn: Rc<Connection>, name: &str) -> Result<Self, Error> {
         try!(conn.request_name(name, DO_NOT_QUEUE));
 
+        // TODO: Add match for the server.
         // TODO: add root object
         // TODO: add ObjectManager interface
 
@@ -69,6 +70,8 @@ impl Server {
         if !self.can_handle {
             return Err(Error::NoServerName);
         }
+
+        // TODO: Validate the path is valid.
 
         match self.objects.entry(path.to_owned()) {
             Entry::Vacant(v)    => {
