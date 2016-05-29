@@ -56,7 +56,7 @@ impl error::Error for Error {
     fn cause(&self) -> Option<&error::Error> {
         match *self {
             Error::ErrorMessage(ref error) => Some(error),
-            _ => None,
+            _                              => None,
         }
     }
 }
