@@ -6,17 +6,28 @@ use std::error;
 use std::fmt::{Display, Formatter, Result};
 
 #[derive(Debug)]
+/// Error states.
 pub enum Error {
+    /// An invalid reply was received from a method call.
     InvalidReply(String),
+    /// An error message from the underlying D-Bus communication.
     ErrorMessage(connection::Error),
+    /// An object was added to a signal-receiver server.
     NoServerName,
 
+    /// A server with the given name was already registered.
     ServerAlreadyRegistered(String),
+    /// A request for a non-existent server was given.
     NoSuchServer(String),
+    /// An object was registered to a path, but it already existed.
     PathAlreadyRegistered(String),
+    /// An object was requested to be removed, but it does not exist.
     NoSuchPath(String),
+    /// Extracting values from a message body failed.
     ExtractArguments(demarshal::DemarshalError),
+    /// An attempt to redefine an interface for an object was made.
     InterfaceAlreadyRegistered(String),
+    /// An attempt to add an interface to an object which is finalized was made.
     InterfacesFinalized(String),
 }
 

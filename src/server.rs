@@ -23,6 +23,7 @@ fn _add_handler(handlers: &mut SignalHandlerMap, signal: Target, handler: Signal
     };
 }
 
+/// A representation of a collection of objects which implement an interface.
 pub struct Server {
     conn: Rc<Connection>,
     name: String,
@@ -35,6 +36,7 @@ pub struct Server {
 }
 
 impl Server {
+    /// Create a new `Server` to listen for signals.
     pub fn new_listener(conn: Rc<Connection>, name: &str) -> Result<Self, Error> {
         Ok(Server {
             conn: conn,
@@ -47,6 +49,7 @@ impl Server {
         })
     }
 
+    /// Create a new `Server` to handle method calls from the bus.
     pub fn new(conn: Rc<Connection>, name: &str) -> Result<Self, Error> {
         try!(conn.request_name(name, DO_NOT_QUEUE));
 
@@ -65,10 +68,12 @@ impl Server {
         })
     }
 
+    /// The name of the server.
     pub fn name(&self) -> &str {
         &self.name
     }
 
+    /// Add an object to the server with the given interfaces.
     pub fn add_object(&mut self, path: &str, ifaces: Interfaces) -> Result<&mut Self, Error> {
         if !self.can_handle {
             return Err(Error::NoServerName);
@@ -92,6 +97,7 @@ impl Server {
         }.map(|_| self)
     }
 
+    /// Remove an object from the server.
     pub fn remove_object(&mut self, path: &str) -> Result<&mut Self, Error> {
         if !self.can_handle {
             return Err(Error::NoServerName);
@@ -107,6 +113,9 @@ impl Server {
         }
     }
 
+    /// Connect a handler to a specific object's signal.
+    ///
+    /// This will register a callback to listen to a specific object's signals.
     pub fn connect<F>(&mut self, signal: Target, callback: F) -> Result<&mut Self, Error>
         where F: FnMut(&Connection, &Target) -> () + 'static {
         let dbus_match = format!("type='signal',interface='{}',path='{}',member='{}'",
@@ -120,6 +129,10 @@ impl Server {
         Ok(self)
     }
 
+    /// Connect a handler to a set of objects' signals.
+    ///
+    /// Any object underneath the requested object path's hierarchy emitting the requested signal
+    /// will trigger the callback.
     pub fn connect_namespace<F>(&mut self, signal: Target, callback: F) -> Result<&mut Self, Error>
         where F: FnMut(&Connection, &Target) -> () + 'static {
         let dbus_match = format!("type='signal',interface='{}',path_namespace='{}',member='{}'",
@@ -133,6 +146,10 @@ impl Server {
         Ok(self)
     }
 
+    /// Handle a message with the appropriate handler.
+    ///
+    /// Returns `None` if the message was consumed, otherwise it returns the original message for
+    /// further processing.
     pub fn handle_message<'b>(&self, m: &'b mut Message) -> Option<&'b mut Message> {
         match m.message_type() {
             MessageType::MethodCall => self._call_method(m),

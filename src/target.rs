@@ -1,9 +1,13 @@
 use super::message::Message;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
+/// A representation of a signal which may be emitted.
 pub struct Target {
+    /// The interface the signal belongs to.
     pub interface: String,
+    /// The object path which will emit the signal.
     pub object: String,
+    /// The method name of the signal.
     pub method: String,
 }
 
@@ -14,6 +18,7 @@ struct SignalHeaders {
 }
 
 impl Target {
+    /// Create a new `Target` structure.
     pub fn new<I: ToString, O: ToString, M: ToString>(interface: I, object: O, method: M) -> Self {
         Target {
             interface: interface.to_string(),
@@ -22,12 +27,18 @@ impl Target {
         }
     }
 
+    /// Extract the signal from a `Message`.
+    ///
+    /// Returns `None` if parsing fails.
     pub fn extract(m: &Message) -> Option<Self> {
         SignalHeaders::new(m).map(|hdrs| {
             Self::new(hdrs.interface, hdrs.object, hdrs.method)
         })
     }
 
+    /// Test if a `Target` matches this target.
+    ///
+    /// This is used to test if a signal belongs to the 
     pub fn namespace_eq(&self, t: &Self) -> bool {
         self.interface == t.interface &&
         self.method == t.method &&

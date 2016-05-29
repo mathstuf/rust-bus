@@ -17,12 +17,17 @@ use std::rc::{Rc, Weak};
 
 type Map<T> = BTreeMap<String, T>;
 
+/// An argument to a method or signal.
 pub struct Argument {
     name: String,
     signature: String,
 }
 
 impl Argument {
+    /// Create a new argument.
+    ///
+    /// The signature string specification is documented in the [D-Bus
+    /// specification](https://dbus.freedesktop.org/doc/dbus-specification.html#basic-types).
     pub fn new(name: &str, sig: &str) -> Self {
         // TODO: make a builder for the signature type.
         Argument {
@@ -32,6 +37,11 @@ impl Argument {
     }
 }
 
+/// Metadata to attach to methods, signals, and properties.
+///
+/// Annotations are used to convey information such as whether a property is observable,
+/// deprecated, the method does not reply, or whether the property value may be cached in client
+/// code.
 pub struct Annotation {
     name: String,
     value: String,
@@ -39,6 +49,10 @@ pub struct Annotation {
 type Annotations = Vec<Annotation>;
 
 impl Annotation {
+    /// Create a new annotation.
+    ///
+    /// For some well-known annotations, see the [D-Bus
+    /// specification](https://dbus.freedesktop.org/doc/dbus-specification.html#introspection-format).
     pub fn new(name: &str, value: &str) -> Self {
         Annotation {
             name: name.to_owned(),
@@ -47,12 +61,16 @@ impl Annotation {
     }
 }
 
+/// An error message from a method call.
 pub struct ErrorMessage {
     name: String,
     message: String,
 }
 
 impl ErrorMessage {
+    /// Create a new error message.
+    ///
+    /// Error message names usually contain `.Error.`.
     pub fn new(name: &str, message: &str) -> Self {
         ErrorMessage {
             name: name.to_owned(),
@@ -66,9 +84,12 @@ impl ErrorMessage {
     }
 }
 
+/// The result of a method call.
 pub type MethodResult = Result<Vec<Value>, ErrorMessage>;
+/// A holder for method closures.
 pub type MethodHandler = Rc<RefCell<FnMut(&mut Message) -> MethodResult>>;
 
+/// A representation of a method call.
 pub struct Method {
     in_args: Vec<Argument>,
     out_args: Vec<Argument>,
@@ -77,6 +98,7 @@ pub struct Method {
 }
 
 impl Method {
+    /// Create a new `Method` with the given function.
     pub fn new<F>(cb: F) -> Self
         where F: FnMut(&mut Message) -> MethodResult + 'static {
         Method {
@@ -87,18 +109,21 @@ impl Method {
         }
     }
 
+    /// Add an input argument to the method.
     pub fn add_argument(mut self, arg: Argument) -> Self {
         self.in_args.push(arg);
 
         self
     }
 
+    /// Add an output to the method.
     pub fn add_result(mut self, arg: Argument) -> Self {
         self.out_args.push(arg);
 
         self
     }
 
+    /// Add an annotation to the method.
     pub fn annotate(mut self, ann: Annotation) -> Self {
         self.anns.push(ann);
 
@@ -106,17 +131,22 @@ impl Method {
     }
 }
 
+/// The result of a property query.
 pub type PropertyGetResult = Result<Value, ErrorMessage>;
+/// The result of a property setting.
 pub type PropertySetResult = Result<(), ErrorMessage>;
 
+/// A trait for read-only properties.
 pub trait PropertyReadHandler {
     fn get(&self) -> PropertyGetResult;
 }
 
+/// A trait for write-only properties.
 pub trait PropertyWriteHandler {
     fn set(&self, &Value) -> PropertySetResult;
 }
 
+/// A trait for read-write properties.
 pub trait PropertyReadWriteHandler {
     fn get(&self) -> PropertyGetResult;
     fn set(&self, &Value) -> PropertySetResult;
@@ -128,6 +158,7 @@ enum PropertyAccess {
     WO(Box<PropertyWriteHandler>),
 }
 
+/// A property which is exposed over the bus.
 pub struct Property {
     signature: Signature,
     access: PropertyAccess,
@@ -143,18 +174,22 @@ impl Property {
         }
     }
 
+    /// Create a new read-only property.
     pub fn new_ro(sig: Signature, access: Box<PropertyReadHandler>) -> Self {
         Property::new(sig, PropertyAccess::RO(access))
     }
 
+    /// Create a new read-write property.
     pub fn new_rw(sig: Signature, access: Box<PropertyReadWriteHandler>) -> Self {
         Property::new(sig, PropertyAccess::RW(access))
     }
 
+    /// Create a new write-only property.
     pub fn new_wo(sig: Signature, access: Box<PropertyWriteHandler>) -> Self {
         Property::new(sig, PropertyAccess::WO(access))
     }
 
+    /// Add an annotation to the property.
     pub fn annotate(mut self, ann: Annotation) -> Self {
         self.anns.push(ann);
 
@@ -162,12 +197,14 @@ impl Property {
     }
 }
 
+/// A signal which may be emitted by the server.
 pub struct Signal {
     args: Vec<Argument>,
     anns: Annotations,
 }
 
 impl Signal {
+    /// Create a new signal.
     pub fn new() -> Self {
         Signal {
             args: vec![],
@@ -175,12 +212,14 @@ impl Signal {
         }
     }
 
+    /// Add an argument to the signal.
     pub fn add_argument(mut self, arg: Argument) -> Self {
         self.args.push(arg);
 
         self
     }
 
+    /// Add an annotation to the signal.
     pub fn annotate(mut self, ann: Annotation) -> Self {
         self.anns.push(ann);
 
@@ -188,6 +227,7 @@ impl Signal {
     }
 }
 
+/// A representation of an interface.
 pub struct Interface {
     methods: Map<Method>,
     properties: Map<Property>,
@@ -196,6 +236,7 @@ pub struct Interface {
 }
 
 impl Interface {
+    /// Create a new interface.
     pub fn new() -> Self {
         Interface {
             methods: Map::new(),
@@ -205,28 +246,33 @@ impl Interface {
         }
     }
 
+    /// Add a method to the interface.
     pub fn add_method(mut self, name: &str, method: Method) -> Self {
         self.methods.insert(name.to_owned(), method);
 
         self
     }
 
+    /// Add a property to the interface.
     pub fn add_property(mut self, name: &str, property: Property) -> Self {
         self.properties.insert(name.to_owned(), property);
 
         self
     }
 
+    /// Get a property from the interface.
     pub fn get_property(&self, name: &str) -> Option<&Property> {
         self.properties.get(name)
     }
 
+    /// Add a signal to the interface.
     pub fn add_signal(mut self, name: &str, signal: Signal) -> Self {
         self.signals.insert(name.to_owned(), signal);
 
         self
     }
 
+    /// Add an annotation to the interface.
     pub fn annotate(mut self, ann: Annotation) -> Self {
         self.anns.push(ann);
 
@@ -239,6 +285,7 @@ impl Interface {
                               &format!("unknown property: {}", name)))
     }
 
+    /// Get the value of a property.
     pub fn get_property_value(&self, name: &str) -> MethodResult {
         self._require_property(name).and_then(|prop| {
             match prop.access {
@@ -254,6 +301,7 @@ impl Interface {
         })
     }
 
+    /// Set a property value.
     pub fn set_property_value(&self, name: &str, value: &Value) -> MethodResult {
         self._require_property(name).and_then(|prop| {
             match prop.access {
@@ -266,6 +314,7 @@ impl Interface {
         })
     }
 
+    /// Get a map of all (readable) property values.
     pub fn get_property_map(&self) -> Dictionary {
         Dictionary::new(self.properties.iter().map(|(k, v)| {
             match v.access {
@@ -283,6 +332,7 @@ impl Interface {
 
 type InterfaceMap = Rc<RefCell<Map<Interface>>>;
 type InterfaceMapRef = Weak<RefCell<Map<Interface>>>;
+/// A list of child objects for an object.
 pub type ChildrenList = Rc<RefCell<Vec<String>>>;
 type ChildrenListRef = Weak<RefCell<Vec<String>>>;
 
@@ -294,6 +344,7 @@ fn require_interface<'a>(map: &'a Ref<'a, Map<Interface>>, name: &str) -> Result
         })
 }
 
+/// A set of interfaces that an object implements.
 pub struct Interfaces {
     map: InterfaceMap,
     finalized: bool,
@@ -508,6 +559,7 @@ impl CallHeaders {
 }
 
 impl Interfaces {
+    /// Create a new, empty set of interfaces.
     pub fn new() -> Self {
         Interfaces {
             map: Rc::new(RefCell::new(Map::new())),
@@ -517,6 +569,7 @@ impl Interfaces {
 
     // Marked as mut for intent; Rc<> doesn't require it though.
     #[allow(unused_mut)]
+    /// Add an interface to the set.
     pub fn add_interface(mut self, name: &str, iface: Interface) -> Result<Self, Error> {
         if self.finalized {
             return Err(Error::InterfacesFinalized(name.to_owned()));
@@ -536,6 +589,13 @@ impl Interfaces {
         }.map(|_| self)
     }
 
+    /// Finalize the interface set.
+    ///
+    /// Once this is called, the interfaces may be used fully. Calling this adds the
+    /// `org.freedesktop.DBus.Peer`, `org.freedesktop.DBus.Properties`, and
+    /// `org.freedesktop.DBus.Introspectable` standard interfaces to the object.
+    ///
+    /// Once this is called, further interfaces may not be added once this is called.
     pub fn finalize(mut self, children: ChildrenList) -> Result<Self, Error> {
         self = try!(Ok(self)
                 .and_then(|this| {
@@ -579,6 +639,15 @@ impl Interfaces {
         expect_sig == actual_sig
     }
 
+    /// Parse a `Message` and call the appropriate method (if applicable).
+    ///
+    /// Returns `None` if the method doesn't match, otherwise a a `Result` indicating whether the
+    /// method call succeeded or not.
+    ///
+    /// # Panics
+    ///
+    /// If the method returns values which do not match its signature, a panic will occur since
+    /// this is a bug in the implementation.
     pub fn handle(&self, conn: &Connection, msg: &mut Message) -> Option<Result<(), ()>> {
         CallHeaders::new(msg).and_then(|hdrs| {
             let iface_name = hdrs.interface;

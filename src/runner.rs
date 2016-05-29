@@ -6,6 +6,10 @@ use super::server::Server;
 use std::collections::btree_map::{BTreeMap, Entry};
 use std::rc::Rc;
 
+/// An object to handle messages and act on them.
+///
+/// A `Runner` object listens to the message bus and handles them off to the appropriate objects
+/// and signal handler callbacks.
 pub struct Runner {
     conn: Rc<Connection>,
 
@@ -14,6 +18,7 @@ pub struct Runner {
 }
 
 impl Runner {
+    /// Create a new runner for the given connection.
     pub fn new(conn: Connection) -> Result<Self, Error> {
         Ok(Runner {
             conn: Rc::new(conn),
@@ -24,6 +29,7 @@ impl Runner {
     }
 
     // FIXME: Rename to `new_listener`?
+    /// Create a server which will listen for and handle signals.
     pub fn add_listener(&mut self, name: &str) -> Result<&mut Server, Error> {
         let listener = try!(Server::new_listener(self.conn.clone(), name));
 
@@ -33,6 +39,7 @@ impl Runner {
     }
 
     // FIXME: Rename to `new_server`?
+    /// Create a server which will expose objects and interfaces to the bus.
     pub fn add_server(&mut self, name: &str) -> Result<&mut Server, Error> {
         match self.servers.entry(name.to_owned()) {
             Entry::Vacant(v)    => {
@@ -44,6 +51,7 @@ impl Runner {
         }
     }
 
+    /// Remove a server from the bus.
     pub fn remove_server(&mut self, name: &str) -> Result<&mut Self, Error> {
         match self.servers.remove(name) {
             Some(_) => Ok(self),
@@ -52,6 +60,7 @@ impl Runner {
     }
 
     // FIXME: Allow this to hook into other event loops.
+    /// Run an event loop to handle messages.
     pub fn run(&mut self) -> () {
         let listeners = &mut self.listeners;
         let servers = &mut self.servers;
