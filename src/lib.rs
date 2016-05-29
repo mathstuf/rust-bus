@@ -38,4 +38,4 @@ pub use object::Object;
 pub use runner::Runner;
 pub use server::Server;
 pub use target::Target;
-pub use value::Value;
+pub use value::*;
