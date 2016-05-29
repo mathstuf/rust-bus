@@ -21,7 +21,7 @@ impl Object {
         &self.path
     }
 
-    pub fn handle_message(&mut self, conn: &Connection, msg: &mut Message) -> Option<Result<(), ()>> {
+    pub fn handle_message(&self, conn: &Connection, msg: &mut Message) -> Option<Result<(), ()>> {
         self.interfaces.handle(conn, msg)
     }
 }
