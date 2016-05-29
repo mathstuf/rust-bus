@@ -37,6 +37,5 @@ pub use message::MessageType;
 pub use object::Object;
 pub use runner::Runner;
 pub use server::Server;
-pub use server::SignalHandler;
 pub use target::Target;
 pub use value::Value;

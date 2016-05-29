@@ -1,3 +1,6 @@
+extern crate core;
+use self::core::ops::DerefMut;
+
 use super::connection::{Connection, ReleaseNameReply, DO_NOT_QUEUE};
 use super::error::Error;
 use super::interface::Interfaces;
@@ -9,7 +12,7 @@ use std::cell::RefCell;
 use std::collections::btree_map::{BTreeMap, Entry};
 use std::rc::Rc;
 
-pub type SignalHandler = Box<FnMut(&Connection, &Target) -> ()>;
+type SignalHandler = Rc<RefCell<FnMut(&Connection, &Target) -> ()>>;
 type SignalHandlers = Vec<SignalHandler>;
 type SignalHandlerMap = BTreeMap<Target, SignalHandlers>;
 
@@ -104,31 +107,33 @@ impl Server {
         }
     }
 
-    pub fn connect(&mut self, signal: Target, callback: SignalHandler) -> Result<&mut Self, Error> {
+    pub fn connect<F>(&mut self, signal: Target, callback: F) -> Result<&mut Self, Error>
+        where F: FnMut(&Connection, &Target) -> () + 'static {
         let dbus_match = format!("type='signal',interface='{}',path='{}',member='{}'",
                                  signal.interface,
                                  signal.object,
                                  signal.method);
         try!(self.conn.add_match(&dbus_match));
 
-        _add_handler(&mut self.signals, signal, callback);
+        _add_handler(&mut self.signals, signal, Rc::new(RefCell::new(callback)));
 
         Ok(self)
     }
 
-    pub fn connect_namespace(&mut self, signal: Target, callback: SignalHandler) -> Result<&mut Self, Error> {
+    pub fn connect_namespace<F>(&mut self, signal: Target, callback: F) -> Result<&mut Self, Error>
+        where F: FnMut(&Connection, &Target) -> () + 'static {
         let dbus_match = format!("type='signal',interface='{}',path_namespace='{}',member='{}'",
                                  signal.interface,
                                  signal.object,
                                  signal.method);
         try!(self.conn.add_match(&dbus_match));
 
-        _add_handler(&mut self.namespace_signals, signal, callback);
+        _add_handler(&mut self.namespace_signals, signal, Rc::new(RefCell::new(callback)));
 
         Ok(self)
     }
 
-    pub fn handle_message<'b>(&mut self, m: &'b mut Message) -> Option<&'b mut Message> {
+    pub fn handle_message<'b>(&self, m: &'b mut Message) -> Option<&'b mut Message> {
         match m.message_type() {
             MessageType::MethodCall => self._call_method(m),
             MessageType::Signal     => Some(self._match_signal(m)),
@@ -136,9 +141,9 @@ impl Server {
         }
     }
 
-    fn _call_method<'b>(&mut self, m: &'b mut Message) -> Option<&'b mut Message> {
+    fn _call_method<'b>(&self, m: &'b mut Message) -> Option<&'b mut Message> {
         let conn = self.conn.clone();
-        self.objects.iter_mut().fold(Some(m), |opt_m, (_, object)| {
+        self.objects.iter().fold(Some(m), |opt_m, (_, object)| {
             opt_m.and_then(|mut m| {
                 match object.handle_message(&conn, &mut m) {
                     None          => Some(m),
@@ -152,23 +157,27 @@ impl Server {
         })
     }
 
-    fn _match_signal<'b>(&mut self, m: &'b mut Message) -> &'b mut Message {
+    fn _match_signal<'b>(&self, m: &'b mut Message) -> &'b mut Message {
         let conn = self.conn.clone();
 
         Target::extract(m).map(|signal| {
-            for handlers in self.signals.get_mut(&signal) {
-                for handler in handlers.iter_mut() {
-                    handler(&conn, &signal);
+            for handlers in self.signals.get(&signal) {
+                for handler in handlers.iter() {
+                    let mut cb = handler.borrow_mut();
+
+                    cb.deref_mut()(&conn, &signal);
                 }
             }
 
-            let matched_handlers = self.namespace_signals.iter_mut().filter(|&(expect, _)| {
+            let matched_handlers = self.namespace_signals.iter().filter(|&(expect, _)| {
                 expect.namespace_eq(&signal)
             });
 
             for (_, handlers) in matched_handlers {
-                for handler in handlers.iter_mut() {
-                    handler(&conn, &signal);
+                for handler in handlers.iter() {
+                    let mut cb = handler.borrow_mut();
+
+                    cb.deref_mut()(&conn, &signal);
                 };
             };
         });
