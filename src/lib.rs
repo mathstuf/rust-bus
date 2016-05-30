@@ -1,3 +1,5 @@
+#![warn(missing_docs)]
+
 //! Module for exposing interfaces to a D-Bus manager.
 //!
 //! The `bus` crate makes it easy to expose interfaces on the D-Bus. Objects are created and added
