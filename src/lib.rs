@@ -1,3 +1,11 @@
+//! Module for exposing interfaces to a D-Bus manager.
+//!
+//! The `bus` crate makes it easy to expose interfaces on the D-Bus. Objects are created and added
+//! to servers which delegate messages across the objects. The standard interfaces such as
+//! properties and introspection are provided automatically.
+//!
+//! Servers may also be created to listen for signals and handle them.
+
 #[macro_use]
 extern crate bitflags;
 

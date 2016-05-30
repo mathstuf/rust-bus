@@ -138,17 +138,21 @@ pub type PropertySetResult = Result<(), ErrorMessage>;
 
 /// A trait for read-only properties.
 pub trait PropertyReadHandler {
+    /// Get the value of the property.
     fn get(&self) -> PropertyGetResult;
 }
 
 /// A trait for write-only properties.
 pub trait PropertyWriteHandler {
+    /// Set the value of the property.
     fn set(&self, &Value) -> PropertySetResult;
 }
 
 /// A trait for read-write properties.
 pub trait PropertyReadWriteHandler {
+    /// Get the value of the property.
     fn get(&self) -> PropertyGetResult;
+    /// Set the value of the property.
     fn set(&self, &Value) -> PropertySetResult;
 }
 
