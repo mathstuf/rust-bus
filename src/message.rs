@@ -10,6 +10,8 @@ use super::value::{BasicValue, Marshal, Value};
 #[derive(Debug)]
 /// A message to communicate on the D-Bus.
 pub struct Message {
+    #[doc(hidden)]
+    // This is used inside of the implementation, but should not be fully public.
     pub message: message::Message,
 }
 
