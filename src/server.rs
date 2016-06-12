@@ -310,6 +310,8 @@ impl Server {
     fn _call_method<'b>(&self, m: &'b mut Message) -> Option<&'b mut Message> {
         let conn = self.conn.clone();
 
+        // TODO: handle objects not existing
+        // org.freedesktop.DBus.Error.UnknownObject -> format!("unknown object: {}", path)
         self.objects.iter().fold(Some(m), |opt_m, (_, object)| {
             opt_m.and_then(|mut m| {
                 match object.handle_message(&conn, &mut m) {
