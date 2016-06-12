@@ -199,6 +199,10 @@ impl Property {
 
         self
     }
+
+    fn _check_signature(&self, value: &Value) -> bool {
+        self.signature.0 == value.get_signature()
+    }
 }
 
 /// A signal which may be emitted by the server.
@@ -292,22 +296,35 @@ impl Interface {
     /// Get the value of a property.
     pub fn get_property_value(&self, name: &str) -> MethodResult {
         self._require_property(name).and_then(|prop| {
-            match prop.access {
-                // TODO: Verify that the signature matches the return.
-                PropertyAccess::RO(ref ro) => ro.get().map(|v| vec![v]),
-                PropertyAccess::RW(ref rw) => rw.get().map(|v| vec![v]),
+            let res = match prop.access {
+                PropertyAccess::RO(ref ro) => ro.get(),
+                PropertyAccess::RW(ref rw) => rw.get(),
                 PropertyAccess::WO(_) =>
                     Err(ErrorMessage {
                         name: "org.freedesktop.DBus.Error.Failed".to_owned(),
                         message: format!("property is write-only: {}", name),
                     }),
+            };
+
+            if let Ok(value) = res.as_ref() {
+                if prop._check_signature(value) {
+                    panic!("invalid property return type for: \
+                            property: '{}' expected: '{}' actual: '{}'",
+                           name, value.get_signature(), prop.signature.0)
+                }
             }
+
+            res.map(|v| vec![v])
         })
     }
 
     /// Set a property value.
     pub fn set_property_value(&self, name: &str, value: &Value) -> MethodResult {
         self._require_property(name).and_then(|prop| {
+            if prop._check_signature(value) {
+                return Err(Arguments::invalid_arguments());
+            }
+
             match prop.access {
                 PropertyAccess::WO(ref wo) => wo.set(value).map(|_| vec![]),
                 PropertyAccess::RW(ref rw) => rw.set(value).map(|_| vec![]),
@@ -323,7 +340,6 @@ impl Interface {
         Dictionary::new(self.properties.iter().map(|(k, v)| {
             match v.access {
                 // TODO: Message that failures occurred?
-                // TODO: Verify that the signature matches the return.
                 PropertyAccess::RO(ref ro) => ro.get().ok(),
                 PropertyAccess::RW(ref rw) => rw.get().ok(),
                 PropertyAccess::WO(_)      => None,
