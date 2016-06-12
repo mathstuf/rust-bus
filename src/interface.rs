@@ -87,7 +87,7 @@ impl ErrorMessage {
 /// The result of a method call.
 pub type MethodResult = Result<Vec<Value>, ErrorMessage>;
 /// A holder for method closures.
-pub type MethodHandler = Rc<RefCell<FnMut(&mut Message) -> MethodResult>>;
+pub type MethodHandler = Box<RefCell<FnMut(&mut Message) -> MethodResult>>;
 
 /// A representation of a method call.
 pub struct Method {
@@ -104,7 +104,7 @@ impl Method {
         Method {
             in_args: vec![],
             out_args: vec![],
-            cb: Rc::new(RefCell::new(cb)),
+            cb: Box::new(RefCell::new(cb)),
             anns: vec![],
         }
     }
