@@ -12,7 +12,6 @@ use super::value::{BasicValue, Dictionary, Signature, Value};
 
 use std::cell::{Ref, RefCell};
 use std::collections::btree_map::{BTreeMap, Entry};
-use std::collections::HashMap;
 use std::rc::{Rc, Weak};
 
 type Map<T> = BTreeMap<String, T>;
@@ -356,7 +355,7 @@ impl Interface {
                     .map(|v| (BasicValue::String(k.clone()), v))
             })
             .filter_map(|a| a)
-            .collect::<HashMap<BasicValue, Value>>())
+            .collect())
     }
 }
 
@@ -692,7 +691,7 @@ impl Interfaces {
             .borrow()
             .iter()
             .map(|(k, v)| (BasicValue::String(k.clone()), Value::Dictionary(v.get_property_map())))
-            .collect::<HashMap<BasicValue, Value>>())
+            .collect())
     }
 
     /// Parse a `Message` and call the appropriate method (if applicable).
