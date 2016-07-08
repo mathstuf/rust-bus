@@ -32,15 +32,23 @@ pub enum Error {
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter) -> Result {
         match *self {
-            Error::InvalidReply(ref desc)               => write!(f, "invalid reply: {}", desc),
-            Error::DBusMessage(ref error)               => write!(f, "dbus error: {:?}", error),
-            Error::NoServerName                         => write!(f, "listening server cannot handle methods"),
-            Error::ServerAlreadyRegistered(ref server)  => write!(f, "server already registered: {}", server),
-            Error::NoSuchServer(ref server)             => write!(f, "no such server: {}", server),
-            Error::PathAlreadyRegistered(ref path)      => write!(f, "path already registered: {}", path),
-            Error::NoSuchPath(ref path)                 => write!(f, "no such path: {}", path),
-            Error::ExtractArguments(ref dmerr)          => write!(f, "failed to extract arguments: {}", dmerr),
-            Error::InterfaceAlreadyRegistered(ref name) => write!(f, "interface already registered: {}", name),
+            Error::InvalidReply(ref desc) => write!(f, "invalid reply: {}", desc),
+            Error::DBusMessage(ref error) => write!(f, "dbus error: {:?}", error),
+            Error::NoServerName => write!(f, "listening server cannot handle methods"),
+            Error::ServerAlreadyRegistered(ref server) => {
+                write!(f, "server already registered: {}", server)
+            },
+            Error::NoSuchServer(ref server) => write!(f, "no such server: {}", server),
+            Error::PathAlreadyRegistered(ref path) => {
+                write!(f, "path already registered: {}", path)
+            },
+            Error::NoSuchPath(ref path) => write!(f, "no such path: {}", path),
+            Error::ExtractArguments(ref dmerr) => {
+                write!(f, "failed to extract arguments: {}", dmerr)
+            },
+            Error::InterfaceAlreadyRegistered(ref name) => {
+                write!(f, "interface already registered: {}", name)
+            },
         }
     }
 }
@@ -53,7 +61,7 @@ impl error::Error for Error {
     fn cause(&self) -> Option<&error::Error> {
         match *self {
             Error::DBusMessage(ref error) => Some(error),
-            _                             => None,
+            _ => None,
         }
     }
 }

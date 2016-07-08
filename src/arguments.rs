@@ -27,10 +27,12 @@ impl Arguments {
     }
 
     pub fn invalid_arguments() -> ErrorMessage {
-        ErrorMessage::new("org.freedesktop.DBus.Error.InvalidArgs", "invalid arguments")
+        ErrorMessage::new("org.freedesktop.DBus.Error.InvalidArgs",
+                          "invalid arguments")
     }
 
     fn invalid_argument(index: usize) -> ErrorMessage {
-        ErrorMessage::new("org.freedesktop.DBus.Error.InvalidArgs", &format!("invalid argument at {}", index))
+        ErrorMessage::new("org.freedesktop.DBus.Error.InvalidArgs",
+                          &format!("invalid argument at {}", index))
     }
 }

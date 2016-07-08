@@ -80,7 +80,7 @@ impl ErrorMessage {
 
     fn into_message(self, msg: &Message) -> Message {
         msg.error_message(&self.name)
-           .add_argument(&self.message)
+            .add_argument(&self.message)
     }
 }
 
@@ -100,7 +100,8 @@ pub struct Method {
 impl Method {
     /// Create a new `Method` with the given function.
     pub fn new<F>(cb: F) -> Self
-        where F: FnMut(&mut Message) -> MethodResult + 'static {
+        where F: FnMut(&mut Message) -> MethodResult + 'static
+    {
         Method {
             in_args: vec![],
             out_args: vec![],
@@ -290,9 +291,10 @@ impl Interface {
     }
 
     fn _require_property(&self, name: &str) -> Result<&Property, ErrorMessage> {
-        self.properties.get(name).ok_or_else(||
+        self.properties.get(name).ok_or_else(|| {
             ErrorMessage::new("org.freedesktop.DBus.Error.UnknownProperty",
-                              &format!("unknown property: {}", name)))
+                              &format!("unknown property: {}", name))
+        })
     }
 
     /// Get the value of a property.
@@ -301,18 +303,21 @@ impl Interface {
             let res = match prop.access {
                 PropertyAccess::RO(ref ro) => ro.get(),
                 PropertyAccess::RW(ref rw) => rw.get(),
-                PropertyAccess::WO(_) =>
+                PropertyAccess::WO(_) => {
                     Err(ErrorMessage {
                         name: "org.freedesktop.DBus.Error.Failed".to_owned(),
                         message: format!("property is write-only: {}", name),
-                    }),
+                    })
+                },
             };
 
             if let Ok(value) = res.as_ref() {
                 if prop._check_signature(value) {
                     panic!("invalid property return type for: \
                             property: '{}' expected: '{}' actual: '{}'",
-                           name, value.get_signature(), prop.signature.0)
+                           name,
+                           value.get_signature(),
+                           prop.signature.0)
                 }
             }
 
@@ -330,24 +335,28 @@ impl Interface {
             match prop.access {
                 PropertyAccess::WO(ref wo) => wo.set(value).map(|_| vec![]),
                 PropertyAccess::RW(ref rw) => rw.set(value).map(|_| vec![]),
-                PropertyAccess::RO(_) =>
+                PropertyAccess::RO(_) => {
                     Err(ErrorMessage::new("org.freedesktop.DBus.Error.Failed",
-                                          &format!("property is read-only: {}", name))),
+                                          &format!("property is read-only: {}", name)))
+                },
             }
         })
     }
 
     /// Get a map of all (readable) property values.
     pub fn get_property_map(&self) -> Dictionary {
-        Dictionary::new(self.properties.iter().map(|(k, v)| {
-            match v.access {
-                PropertyAccess::RO(ref ro) => ro.get().ok(),
-                PropertyAccess::RW(ref rw) => rw.get().ok(),
-                PropertyAccess::WO(_)      => None,
-            }.map(|v| {
-                (BasicValue::String(k.clone()), v)
+        Dictionary::new(self.properties
+            .iter()
+            .map(|(k, v)| {
+                match v.access {
+                        PropertyAccess::RO(ref ro) => ro.get().ok(),
+                        PropertyAccess::RW(ref rw) => rw.get().ok(),
+                        PropertyAccess::WO(_) => None,
+                    }
+                    .map(|v| (BasicValue::String(k.clone()), v))
             })
-        }).filter_map(|a| a).collect::<HashMap<BasicValue, Value>>())
+            .filter_map(|a| a)
+            .collect::<HashMap<BasicValue, Value>>())
     }
 }
 
@@ -357,12 +366,12 @@ type InterfaceMapRef = Weak<RefCell<Map<Interface>>>;
 pub type ChildrenList = Rc<RefCell<Vec<String>>>;
 type ChildrenListRef = Weak<RefCell<Vec<String>>>;
 
-fn require_interface<'a>(map: &'a Ref<'a, Map<Interface>>, name: &str) -> Result<&'a Interface, ErrorMessage> {
-    map.get(name).ok_or(
-        ErrorMessage {
-            name: "org.freedesktop.DBus.Error.UnknownInterface".to_owned(),
-            message: format!("unknown interface: {}", name),
-        })
+fn require_interface<'a>(map: &'a Ref<'a, Map<Interface>>, name: &str)
+                         -> Result<&'a Interface, ErrorMessage> {
+    map.get(name).ok_or(ErrorMessage {
+        name: "org.freedesktop.DBus.Error.UnknownInterface".to_owned(),
+        message: format!("unknown interface: {}", name),
+    })
 }
 
 /// A builder for a set of interfaces that an object implements.
@@ -390,8 +399,9 @@ impl PeerInterface {
     pub fn new() -> Interface {
         Interface::new()
             .add_method("Ping", Method::new(|_| Self::ping()))
-            .add_method("GetMachineId", Method::new(|_| Self::get_machine_id())
-                .add_result(Argument::new("machine_uuid", "s")))
+            .add_method("GetMachineId",
+                        Method::new(|_| Self::get_machine_id())
+                            .add_result(Argument::new("machine_uuid", "s")))
     }
 }
 
@@ -406,9 +416,7 @@ impl PropertyInterface {
         let smap = map.upgrade().expect("get_property: interface map no longer exists?");
         let smap_ref = &smap.borrow();
 
-        require_interface(smap_ref, iface).and_then(|iface| {
-            iface.get_property_value(property)
-        })
+        require_interface(smap_ref, iface).and_then(|iface| iface.get_property_value(property))
     }
 
     fn set_property(map: InterfaceMapRef, m: &mut Message) -> MethodResult {
@@ -420,9 +428,8 @@ impl PropertyInterface {
         let smap = map.upgrade().expect("get_property: interface map no longer exists?");
         let smap_ref = &smap.borrow();
 
-        require_interface(smap_ref, iface).and_then(|iface| {
-            iface.set_property_value(property, value)
-        })
+        require_interface(smap_ref, iface)
+            .and_then(|iface| iface.set_property_value(property, value))
     }
 
     fn get_all_properties(map: InterfaceMapRef, m: &mut Message) -> MethodResult {
@@ -432,9 +439,8 @@ impl PropertyInterface {
         let smap = map.upgrade().expect("get_property: interface map no longer exists?");
         let smap_ref = &smap.borrow();
 
-        require_interface(smap_ref, iface).map(|iface| {
-            vec![Value::Dictionary(iface.get_property_map())]
-        })
+        require_interface(smap_ref, iface)
+            .map(|iface| vec![Value::Dictionary(iface.get_property_map())])
     }
 
     pub fn new(map: InterfaceMapRef) -> Interface {
@@ -443,17 +449,20 @@ impl PropertyInterface {
         let get_all_map = map.clone();
 
         Interface::new()
-            .add_method("Get", Method::new(move |m| Self::get_property(get_map.clone(), m))
-                .add_argument(Argument::new("interface_name", "s"))
-                .add_argument(Argument::new("property_name", "s"))
-                .add_result(Argument::new("value", "v")))
-            .add_method("Set", Method::new(move |m| Self::set_property(set_map.clone(), m))
-                .add_argument(Argument::new("interface_name", "s"))
-                .add_argument(Argument::new("property_name", "s"))
-                .add_result(Argument::new("value", "v")))
-            .add_method("GetAll", Method::new(move |m| Self::get_all_properties(get_all_map.clone(), m))
-                .add_argument(Argument::new("interface_name", "s"))
-                .add_result(Argument::new("props", "{sv}")))
+            .add_method("Get",
+                        Method::new(move |m| Self::get_property(get_map.clone(), m))
+                            .add_argument(Argument::new("interface_name", "s"))
+                            .add_argument(Argument::new("property_name", "s"))
+                            .add_result(Argument::new("value", "v")))
+            .add_method("Set",
+                        Method::new(move |m| Self::set_property(set_map.clone(), m))
+                            .add_argument(Argument::new("interface_name", "s"))
+                            .add_argument(Argument::new("property_name", "s"))
+                            .add_result(Argument::new("value", "v")))
+            .add_method("GetAll",
+                        Method::new(move |m| Self::get_all_properties(get_all_map.clone(), m))
+                            .add_argument(Argument::new("interface_name", "s"))
+                            .add_result(Argument::new("props", "{sv}")))
     }
 }
 
@@ -472,95 +481,106 @@ impl IntrospectableInterface {
             r#"{}"#, // interface
             r#"{}"#, // children
             r#"</node>\n"#),
-            env!("CARGO_PKG_VERSION"),
-            Self::_to_string_map(&*smap.borrow(), |k, v| Self::_introspect_interface(" ", k, v)),
-            schildren.borrow().iter().fold("".to_owned(), |p, name| {
-                format!(r#"{} <node name="{}" />"#, p, name)
-            }));
+                          env!("CARGO_PKG_VERSION"),
+                          Self::_to_string_map(&*smap.borrow(),
+                                               |k, v| Self::_introspect_interface(" ", k, v)),
+                          schildren.borrow().iter().fold("".to_owned(), |p, name| {
+                              format!(r#"{} <node name="{}" />"#, p, name)
+                          }));
         Ok(vec![Value::BasicValue(BasicValue::String(xml))])
     }
 
     fn _to_string_map<K, V, F>(map: &BTreeMap<K, V>, f: F) -> String
-        where F: Fn(&K, &V) -> String {
-        map.iter().fold("".to_owned(), |p, (k, v)| {
-            format!("{}{}", p, f(k, v))
-        })
+        where F: Fn(&K, &V) -> String
+    {
+        map.iter().fold("".to_owned(), |p, (k, v)| format!("{}{}", p, f(k, v)))
     }
 
     fn _to_string_list<T, F>(map: &[T], f: F) -> String
-        where F: Fn(&T) -> String {
-        map.iter().fold("".to_owned(), |p, t| {
-            format!("{}{}", p, f(t))
-        })
+        where F: Fn(&T) -> String
+    {
+        map.iter().fold("".to_owned(), |p, t| format!("{}{}", p, f(t)))
     }
 
     fn _introspect_annotation(indent: &str, ann: &Annotation) -> String {
         format!(r#"{}<annotation name="{}" value="{}" />\n"#,
-            indent,
-            ann.name,
-            ann.value)
+                indent,
+                ann.name,
+                ann.value)
     }
 
     fn _introspect_arg(indent: &str, direction: &str, arg: &Argument) -> String {
         format!(r#"{}<arg name="{}" type="{}" direction="{}" />\n"#,
-            indent,
-            arg.name,
-            arg.signature,
-            direction)
+                indent,
+                arg.name,
+                arg.signature,
+                direction)
     }
 
     fn _introspect_property(indent: &str, name: &str, prop: &Property) -> String {
         let new_indent = format!("{} ", indent);
-        let access =
-            match prop.access {
-                PropertyAccess::RO(_) => "read",
-                PropertyAccess::RW(_) => "readwrite",
-                PropertyAccess::WO(_) => "write",
-            };
-        let sig = match prop.signature { Signature(ref s) => s };
+        let access = match prop.access {
+            PropertyAccess::RO(_) => "read",
+            PropertyAccess::RW(_) => "readwrite",
+            PropertyAccess::WO(_) => "write",
+        };
+        let sig = match prop.signature {
+            Signature(ref s) => s,
+        };
         format!(r#"{}<property name="" type="{}" access="{}">\n{}{}</property>\n"#,
-            name,
-            sig,
-            access,
-            Self::_to_string_list(&prop.anns, |t| Self::_introspect_annotation(&new_indent, t)),
-            indent)
+                name,
+                sig,
+                access,
+                Self::_to_string_list(&prop.anns, |t| Self::_introspect_annotation(&new_indent, t)),
+                indent)
     }
 
     fn _introspect_method(indent: &str, name: &str, method: &Method) -> String {
         let new_indent = format!("{} ", indent);
         format!(r#"{}<method name="">\n{}{}{}{}</method>\n"#,
-            name,
-            Self::_to_string_list(&method.in_args, |t| Self::_introspect_arg(&new_indent, "in", t)),
-            Self::_to_string_list(&method.out_args, |t| Self::_introspect_arg(&new_indent, "out", t)),
-            Self::_to_string_list(&method.anns, |t| Self::_introspect_annotation(&new_indent, t)),
-            indent)
+                name,
+                Self::_to_string_list(&method.in_args,
+                                      |t| Self::_introspect_arg(&new_indent, "in", t)),
+                Self::_to_string_list(&method.out_args,
+                                      |t| Self::_introspect_arg(&new_indent, "out", t)),
+                Self::_to_string_list(&method.anns,
+                                      |t| Self::_introspect_annotation(&new_indent, t)),
+                indent)
     }
 
     fn _introspect_signal(indent: &str, name: &str, signal: &Signal) -> String {
         let new_indent = format!("{} ", indent);
         format!(r#"{}<signal name="">\n{}{}{}</signal>\n"#,
-            name,
-            Self::_to_string_list(&signal.args, |t| Self::_introspect_arg(&new_indent, "out", t)),
-            Self::_to_string_list(&signal.anns, |t| Self::_introspect_annotation(&new_indent, t)),
-            indent)
+                name,
+                Self::_to_string_list(&signal.args,
+                                      |t| Self::_introspect_arg(&new_indent, "out", t)),
+                Self::_to_string_list(&signal.anns,
+                                      |t| Self::_introspect_annotation(&new_indent, t)),
+                indent)
     }
 
     fn _introspect_interface(indent: &str, name: &str, iface: &Interface) -> String {
         let new_indent = format!("{} ", indent);
         format!(r#"{}<interface name="{}">\n{}{}{}{}{}</interface>\n"#,
-            indent,
-            name,
-            Self::_to_string_map(&iface.properties, |k, v| Self::_introspect_property(&new_indent, k, v)),
-            Self::_to_string_map(&iface.methods, |k, v| Self::_introspect_method(&new_indent, k, v)),
-            Self::_to_string_map(&iface.signals, |k, v| Self::_introspect_signal(&new_indent, k, v)),
-            Self::_to_string_list(&iface.anns, |t| Self::_introspect_annotation(&new_indent, t)),
-            indent)
+                indent,
+                name,
+                Self::_to_string_map(&iface.properties,
+                                     |k, v| Self::_introspect_property(&new_indent, k, v)),
+                Self::_to_string_map(&iface.methods,
+                                     |k, v| Self::_introspect_method(&new_indent, k, v)),
+                Self::_to_string_map(&iface.signals,
+                                     |k, v| Self::_introspect_signal(&new_indent, k, v)),
+                Self::_to_string_list(&iface.anns,
+                                      |t| Self::_introspect_annotation(&new_indent, t)),
+                indent)
     }
 
     pub fn new(map: InterfaceMapRef, children: ChildrenListRef) -> Interface {
-        Interface::new()
-            .add_method("Introspect", Method::new(move |m| Self::introspect(map.clone(), children.clone(), m))
-                .add_result(Argument::new("xml_data", "s")))
+        Interface::new().add_method("Introspect",
+                                    Method::new(move |m| {
+                                            Self::introspect(map.clone(), children.clone(), m)
+                                        })
+                                        .add_result(Argument::new("xml_data", "s")))
     }
 }
 
@@ -580,7 +600,6 @@ impl CallHeaders {
             })
         })
     }
-
 }
 
 impl InterfacesBuilder {
@@ -589,17 +608,18 @@ impl InterfacesBuilder {
     /// Add an interface to the set.
     pub fn add_interface(mut self, name: &str, iface: Interface) -> Result<Self, Error> {
         {
-            let mut map = self.map.borrow_mut();
+                let mut map = self.map.borrow_mut();
 
-            match map.entry(name.to_owned()) {
-                Entry::Vacant(v)    => {
-                    v.insert(iface);
+                match map.entry(name.to_owned()) {
+                    Entry::Vacant(v) => {
+                        v.insert(iface);
 
-                    Ok(())
-                },
-                Entry::Occupied(_)  => Err(Error::InterfaceAlreadyRegistered(name.to_owned())),
+                        Ok(())
+                    },
+                    Entry::Occupied(_) => Err(Error::InterfaceAlreadyRegistered(name.to_owned())),
+                }
             }
-        }.map(|_| self)
+            .map(|_| self)
     }
 
     /// Finalize the interface set.
@@ -611,19 +631,19 @@ impl InterfacesBuilder {
     /// Once this is called, further interfaces may not be added once this is called.
     pub fn finalize(mut self, children: &ChildrenList) -> Result<Interfaces, Error> {
         self = try!(Ok(self)
-                .and_then(|this| {
-                    this.add_interface("org.freedesktop.DBus.Peer",
-                                       PeerInterface::new())
-                }).and_then(|this| {
-                    let map_ref = Rc::downgrade(&this.map);
-                    this.add_interface("org.freedesktop.DBus.Properties",
-                                       PropertyInterface::new(map_ref))
-                }).and_then(|this| {
-                    let map_ref = Rc::downgrade(&this.map);
-                    this.add_interface("org.freedesktop.DBus.Introspectable",
-                                       IntrospectableInterface::new(map_ref,
-                                                                    Rc::downgrade(children)))
-                }));
+            .and_then(|this| {
+                this.add_interface("org.freedesktop.DBus.Peer", PeerInterface::new())
+            })
+            .and_then(|this| {
+                let map_ref = Rc::downgrade(&this.map);
+                this.add_interface("org.freedesktop.DBus.Properties",
+                                   PropertyInterface::new(map_ref))
+            })
+            .and_then(|this| {
+                let map_ref = Rc::downgrade(&this.map);
+                this.add_interface("org.freedesktop.DBus.Introspectable",
+                                   IntrospectableInterface::new(map_ref, Rc::downgrade(children)))
+            }));
 
         Ok(Interfaces {
             map: self.map,
@@ -647,12 +667,14 @@ impl Interfaces {
     }
 
     fn _msg_signature(msg: &Message) -> String {
-        msg.values().unwrap()
-           .map_or_else(|| "".to_owned(),
-                        |vs| vs.iter()
-                               .map(|v| v.get_signature().to_owned())
-                               .collect::<Vec<_>>()
-                               .join(""))
+        msg.values()
+            .unwrap()
+            .map_or_else(|| "".to_owned(), |vs| {
+                vs.iter()
+                    .map(|v| v.get_signature().to_owned())
+                    .collect::<Vec<_>>()
+                    .join("")
+            })
     }
 
     fn _check_signature(args: &[Argument], msg: &Message) -> bool {
@@ -666,9 +688,11 @@ impl Interfaces {
     ///
     /// This is meant to be used by an ObjectManager interface.
     pub fn get_interfaces_and_properties(&self) -> Dictionary {
-        Dictionary::new(self.map.borrow().iter().map(|(k, v)| {
-            (BasicValue::String(k.clone()), Value::Dictionary(v.get_property_map()))
-        }).collect::<HashMap<BasicValue, Value>>())
+        Dictionary::new(self.map
+            .borrow()
+            .iter()
+            .map(|(k, v)| (BasicValue::String(k.clone()), Value::Dictionary(v.get_property_map())))
+            .collect::<HashMap<BasicValue, Value>>())
     }
 
     /// Parse a `Message` and call the appropriate method (if applicable).
@@ -694,20 +718,17 @@ impl Interfaces {
 
                     match cb.deref_mut()(msg) {
                         Ok(vals) => {
-                            vals.iter().fold(msg.return_message(), |msg, val| {
-                                msg.add_argument(val)
-                            })
+                            vals.iter().fold(msg.return_message(), |msg, val| msg.add_argument(val))
                         },
                         Err(err) => err.into_message(msg),
                     }
                 } else {
-                    Arguments::invalid_arguments()
-                        .into_message(msg)
+                    Arguments::invalid_arguments().into_message(msg)
                 };
 
                 match res.message_type() {
-                    MessageType::Error          => (),
-                    MessageType::MethodReturn   => {
+                    MessageType::Error => (),
+                    MessageType::MethodReturn => {
                         let expect = Self::_signature(&method.out_args);
                         let actual = Self::_msg_signature(&res);
 
@@ -715,24 +736,29 @@ impl Interfaces {
                             panic!("invalid return signature for: \
                                     path: '{:?}' interface: '{}' method: '{}' \
                                     expected: '{}' actual: '{}'",
-                                   msg.path(), iface_name, method_name,
-                                   expect, actual)
+                                   msg.path(),
+                                   iface_name,
+                                   method_name,
+                                   expect,
+                                   actual)
                         };
                     },
-                    _                           => {
+                    _ => {
                         panic!("invalid return value for: \
                                 path: '{:?}' interface: '{}' method: '{}'",
-                               msg.path(), iface_name, method_name)
+                               msg.path(),
+                               iface_name,
+                               method_name)
                     },
                 };
 
                 res
             } else if opt_iface.is_none() {
                 msg.error_message("org.freedesktop.DBus.Error.UnknownMethod")
-                   .add_argument(&format!("unknown interface: {}", iface_name))
+                    .add_argument(&format!("unknown interface: {}", iface_name))
             } else {
                 msg.error_message("org.freedesktop.DBus.Error.UnknownMethod")
-                   .add_argument(&format!("unknown method: {}", method_name))
+                    .add_argument(&format!("unknown method: {}", method_name))
             };
 
             conn.send(res)
@@ -757,15 +783,20 @@ fn empty_interface() {
         assert_eq!(map.len(), 3);
         assert_eq!(map.contains_key("org.freedesktop.DBus.Peer"), true);
         assert_eq!(map.contains_key("org.freedesktop.DBus.Properties"), true);
-        assert_eq!(map.contains_key("org.freedesktop.DBus.Introspectable"), true);
+        assert_eq!(map.contains_key("org.freedesktop.DBus.Introspectable"),
+                   true);
     }
 
     let conn = Connection::session_new().unwrap();
     let name = "net.benboeckel.test.rustbus";
 
-    assert_eq!(conn.request_name(name, RequestNameFlags::empty()).unwrap(), RequestNameReply::PrimaryOwner);
+    assert_eq!(conn.request_name(name, RequestNameFlags::empty()).unwrap(),
+               RequestNameReply::PrimaryOwner);
 
-    let mut msg = Message::new_method_call(name, "/", "org.freedesktop.DBus.Introspectable", "Introspect");
+    let mut msg = Message::new_method_call(name,
+                                           "/",
+                                           "org.freedesktop.DBus.Introspectable",
+                                           "Introspect");
 
     ifaces.handle(&conn, &mut msg);
 }

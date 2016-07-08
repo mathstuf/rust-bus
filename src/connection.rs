@@ -83,13 +83,13 @@ impl Connection {
     /// the bus, but a name for the application may be requested. Names are, by convention, in a
     /// reverse domain name format and use CamelCase for application-level names (e.g.,
     /// `com.example.Application`).
-    pub fn request_name(&self, name: &str, flags: RequestNameFlags) -> Result<RequestNameReply, Error> {
+    pub fn request_name(&self, name: &str, flags: RequestNameFlags)
+                        -> Result<RequestNameReply, Error> {
         // TODO: Use an actual struct with an API for this.
-        let msg = Message::new_method_call(
-                "org.freedesktop.DBus",
-                "/org/freedesktop/DBus",
-                "org.freedesktop.DBus",
-                "RequestName")
+        let msg = Message::new_method_call("org.freedesktop.DBus",
+                                           "/org/freedesktop/DBus",
+                                           "org.freedesktop.DBus",
+                                           "RequestName")
             .add_argument(&name)
             .add_argument(&flags.bits);
         if let Some(mut results) = try!(self.conn.call_sync(msg.message)) {
@@ -112,11 +112,10 @@ impl Connection {
     /// Release a name on the bus.
     pub fn release_name(&self, name: &str) -> Result<ReleaseNameReply, Error> {
         // TODO: Use an actual struct with an API for this.
-        let msg = Message::new_method_call(
-                "org.freedesktop.DBus",
-                "/org/freedesktop/DBus",
-                "org.freedesktop.DBus",
-                "ReleaseName")
+        let msg = Message::new_method_call("org.freedesktop.DBus",
+                                           "/org/freedesktop/DBus",
+                                           "org.freedesktop.DBus",
+                                           "ReleaseName")
             .add_argument(&name);
         if let Some(mut results) = try!(self.conn.call_sync(msg.message)) {
             if let Some(Value::BasicValue(BasicValue::Uint32(r))) = results.pop() {
@@ -142,11 +141,10 @@ impl Connection {
     /// The match syntax is documented in the [D-Bus
     /// specification](https://dbus.freedesktop.org/doc/dbus-specification.html#message-bus-routing).
     pub fn add_match(&self, match_rule: &str) -> Result<(), Error> {
-        let msg = Message::new_method_call(
-                "org.freedesktop.DBus",
-                "/org/freedesktop/DBus",
-                "org.freedesktop.DBus",
-                "AddMatch")
+        let msg = Message::new_method_call("org.freedesktop.DBus",
+                                           "/org/freedesktop/DBus",
+                                           "org.freedesktop.DBus",
+                                           "AddMatch")
             .add_argument(&match_rule);
         try!(self.conn.call_sync(msg.message));
         Ok(())
@@ -169,9 +167,8 @@ impl Connection {
 
 fn _should_handle(message: &Message) -> bool {
     match message.message_type() {
-        MessageType::MethodCall |
-        MessageType::Signal => true,
-        _                   => false,
+        MessageType::MethodCall | MessageType::Signal => true,
+        _ => false,
     }
 }
 
@@ -194,7 +191,7 @@ impl<'a> Iterator for Messages<'a> {
                     None
                 }
             },
-            Err(_)      => None,
+            Err(_) => None,
         }
     }
 }

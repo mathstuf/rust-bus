@@ -77,11 +77,11 @@ impl Message {
     /// The type of the message.
     pub fn message_type(&self) -> MessageType {
         match self.message.message_type {
-            message::MESSAGE_TYPE_ERROR         => MessageType::Error,
-            message::MESSAGE_TYPE_METHOD_CALL   => MessageType::MethodCall,
+            message::MESSAGE_TYPE_ERROR => MessageType::Error,
+            message::MESSAGE_TYPE_METHOD_CALL => MessageType::MethodCall,
             message::MESSAGE_TYPE_METHOD_RETURN => MessageType::MethodReturn,
-            message::MESSAGE_TYPE_SIGNAL        => MessageType::Signal,
-            _                                   => MessageType::Invalid,
+            message::MESSAGE_TYPE_SIGNAL => MessageType::Signal,
+            _ => MessageType::Invalid,
         }
     }
 

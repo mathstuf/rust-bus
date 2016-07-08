@@ -18,8 +18,10 @@ type SignalHandlerMap = BTreeMap<Target, SignalHandlers>;
 
 fn _add_handler(handlers: &mut SignalHandlerMap, signal: Target, handler: SignalHandler) {
     match handlers.entry(signal) {
-        Entry::Vacant(v)    => { v.insert(vec![handler]); },
-        Entry::Occupied(o)  => o.into_mut().push(handler),
+        Entry::Vacant(v) => {
+            v.insert(vec![handler]);
+        },
+        Entry::Occupied(o) => o.into_mut().push(handler),
     };
 }
 
@@ -82,20 +84,21 @@ impl Server {
         // TODO: Validate the path is valid.
 
         match self.objects.entry(path.to_owned()) {
-            Entry::Vacant(v)    => {
-                // TODO: store this
-                let children = Rc::new(RefCell::new(vec![]));
-                let finalized_ifaces = try!(ifaces.finalize(&children));
-                let obj = try!(Object::new(path, finalized_ifaces));
+                Entry::Vacant(v) => {
+                    // TODO: store this
+                    let children = Rc::new(RefCell::new(vec![]));
+                    let finalized_ifaces = try!(ifaces.finalize(&children));
+                    let obj = try!(Object::new(path, finalized_ifaces));
 
-                // TODO: emit InterfacesAdded signal
+                    // TODO: emit InterfacesAdded signal
 
-                v.insert(obj);
+                    v.insert(obj);
 
-                Ok(())
-            },
-            Entry::Occupied(_)  => Err(Error::PathAlreadyRegistered(path.to_owned())),
-        }.map(|_| self)
+                    Ok(())
+                },
+                Entry::Occupied(_) => Err(Error::PathAlreadyRegistered(path.to_owned())),
+            }
+            .map(|_| self)
     }
 
     /// Remove an object from the server.
@@ -110,7 +113,7 @@ impl Server {
 
                 Ok(self)
             },
-            None    => Err(Error::NoSuchPath(path.to_owned())),
+            None => Err(Error::NoSuchPath(path.to_owned())),
         }
     }
 
@@ -118,7 +121,8 @@ impl Server {
     ///
     /// This will register a callback to listen to a specific object's signals.
     pub fn connect<F>(&mut self, signal: Target, callback: F) -> Result<&mut Self, Error>
-        where F: FnMut(&Connection, &Target) -> () + 'static {
+        where F: FnMut(&Connection, &Target) -> () + 'static
+    {
         let dbus_match = format!("type='signal',interface='{}',path='{}',member='{}'",
                                  signal.interface,
                                  signal.object,
@@ -135,14 +139,17 @@ impl Server {
     /// Any object underneath the requested object path's hierarchy emitting the requested signal
     /// will trigger the callback.
     pub fn connect_namespace<F>(&mut self, signal: Target, callback: F) -> Result<&mut Self, Error>
-        where F: FnMut(&Connection, &Target) -> () + 'static {
+        where F: FnMut(&Connection, &Target) -> () + 'static
+    {
         let dbus_match = format!("type='signal',interface='{}',path_namespace='{}',member='{}'",
                                  signal.interface,
                                  signal.object,
                                  signal.method);
         try!(self.conn.add_match(&dbus_match));
 
-        _add_handler(&mut self.namespace_signals, signal, Rc::new(RefCell::new(callback)));
+        _add_handler(&mut self.namespace_signals,
+                     signal,
+                     Rc::new(RefCell::new(callback)));
 
         Ok(self)
     }
@@ -154,8 +161,8 @@ impl Server {
     pub fn handle_message<'b>(&self, m: &'b mut Message) -> Option<&'b mut Message> {
         match m.message_type() {
             MessageType::MethodCall => self._call_method(m),
-            MessageType::Signal     => Some(self._match_signal(m)),
-            _                       => Some(m),
+            MessageType::Signal => Some(self._match_signal(m)),
+            _ => Some(m),
         }
     }
 
@@ -164,8 +171,8 @@ impl Server {
         self.objects.iter().fold(Some(m), |opt_m, (_, object)| {
             opt_m.and_then(|mut m| {
                 match object.handle_message(&conn, &mut m) {
-                    None          => Some(m),
-                    Some(Ok(()))  => None,
+                    None => Some(m),
+                    Some(Ok(())) => None,
                     Some(Err(())) => {
                         println!("failed to send a reply for {:?}", m);
                         None
@@ -187,17 +194,16 @@ impl Server {
                 }
             }
 
-            let matched_handlers = self.namespace_signals.iter().filter(|&(expect, _)| {
-                expect.namespace_eq(&signal)
-            });
+            let matched_handlers =
+                self.namespace_signals.iter().filter(|&(expect, _)| expect.namespace_eq(&signal));
 
             for (_, handlers) in matched_handlers {
                 for handler in handlers.iter() {
                     let mut cb = handler.borrow_mut();
 
                     cb.deref_mut()(&conn, &signal);
-                };
-            };
+                }
+            }
         });
 
         m
@@ -212,12 +218,17 @@ impl Drop for Server {
 
         let res = self.conn.release_name(&self.name);
         match res {
-            Ok(reply) =>
+            Ok(reply) => {
                 match reply {
-                    ReleaseNameReply::Released    => (),
-                    ReleaseNameReply::NonExistent => panic!("internal error: non-existent name {}?!", self.name),
-                    ReleaseNameReply::NotOwner    => panic!("internal error: not the owner of {}?!", self.name),
-                },
+                    ReleaseNameReply::Released => (),
+                    ReleaseNameReply::NonExistent => {
+                        panic!("internal error: non-existent name {}?!", self.name)
+                    },
+                    ReleaseNameReply::NotOwner => {
+                        panic!("internal error: not the owner of {}?!", self.name)
+                    },
+                }
+            },
             Err(err) => println!("failed to release {}: {:?}", self.name, err),
         }
     }

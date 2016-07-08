@@ -42,12 +42,12 @@ impl Runner {
     /// Create a server which will expose objects and interfaces to the bus.
     pub fn add_server(&mut self, name: &str) -> Result<&mut Server, Error> {
         match self.servers.entry(name.to_owned()) {
-            Entry::Vacant(v)    => {
+            Entry::Vacant(v) => {
                 let server = try!(Server::new(self.conn.clone(), name));
 
                 Ok(v.insert(server))
             },
-            Entry::Occupied(_)  => Err(Error::ServerAlreadyRegistered(name.to_owned())),
+            Entry::Occupied(_) => Err(Error::ServerAlreadyRegistered(name.to_owned())),
         }
     }
 
@@ -55,7 +55,7 @@ impl Runner {
     pub fn remove_server(&mut self, name: &str) -> Result<&mut Self, Error> {
         match self.servers.remove(name) {
             Some(_) => Ok(self),
-            None    => Err(Error::NoSuchServer(name.to_owned())),
+            None => Err(Error::NoSuchServer(name.to_owned())),
         }
     }
 
@@ -75,9 +75,7 @@ impl Runner {
             }
 
             servers.iter_mut().fold(Some(&mut message), |opt_m, (_, server)| {
-                opt_m.and_then(|m| {
-                    server.handle_message(m)
-                })
+                opt_m.and_then(|m| server.handle_message(m))
             });
         });
     }

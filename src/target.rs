@@ -31,17 +31,14 @@ impl Target {
     ///
     /// Returns `None` if parsing fails.
     pub fn extract(m: &Message) -> Option<Self> {
-        SignalHeaders::new(m).map(|hdrs| {
-            Self::new(hdrs.interface, hdrs.object, hdrs.method)
-        })
+        SignalHeaders::new(m).map(|hdrs| Self::new(hdrs.interface, hdrs.object, hdrs.method))
     }
 
     /// Test if a `Target` matches this target.
     ///
-    /// This is used to test if a signal belongs to the 
+    /// This is used to test if a signal belongs to the
     pub fn namespace_eq(&self, t: &Self) -> bool {
-        self.interface == t.interface &&
-        self.method == t.method &&
+        self.interface == t.interface && self.method == t.method &&
         t.object.starts_with(&format!("{}/", self.object))
     }
 }
