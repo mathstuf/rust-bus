@@ -78,7 +78,7 @@ impl ErrorMessage {
         }
     }
 
-    fn to_message(self, msg: &Message) -> Message {
+    fn into_message(self, msg: &Message) -> Message {
         msg.error_message(&self.name)
            .add_argument(&self.message)
     }
@@ -205,6 +205,7 @@ impl Property {
     }
 }
 
+#[derive(Default)]
 /// A signal which may be emitted by the server.
 pub struct Signal {
     args: Vec<Argument>,
@@ -235,6 +236,7 @@ impl Signal {
     }
 }
 
+#[derive(Default)]
 /// A representation of an interface.
 pub struct Interface {
     methods: Map<Method>,
@@ -288,7 +290,7 @@ impl Interface {
     }
 
     fn _require_property(&self, name: &str) -> Result<&Property, ErrorMessage> {
-        self.properties.get(name).ok_or(
+        self.properties.get(name).ok_or_else(||
             ErrorMessage::new("org.freedesktop.DBus.Error.UnknownProperty",
                               &format!("unknown property: {}", name)))
     }
@@ -485,7 +487,7 @@ impl IntrospectableInterface {
         })
     }
 
-    fn _to_string_list<T, F>(map: &Vec<T>, f: F) -> String
+    fn _to_string_list<T, F>(map: &[T], f: F) -> String
         where F: Fn(&T) -> String {
         map.iter().fold("".to_owned(), |p, t| {
             format!("{}{}", p, f(t))
@@ -507,7 +509,7 @@ impl IntrospectableInterface {
             direction)
     }
 
-    fn _introspect_property(indent: &str, name: &String, prop: &Property) -> String {
+    fn _introspect_property(indent: &str, name: &str, prop: &Property) -> String {
         let new_indent = format!("{} ", indent);
         let access =
             match prop.access {
@@ -524,7 +526,7 @@ impl IntrospectableInterface {
             indent)
     }
 
-    fn _introspect_method(indent: &str, name: &String, method: &Method) -> String {
+    fn _introspect_method(indent: &str, name: &str, method: &Method) -> String {
         let new_indent = format!("{} ", indent);
         format!(r#"{}<method name="">\n{}{}{}{}</method>\n"#,
             name,
@@ -534,7 +536,7 @@ impl IntrospectableInterface {
             indent)
     }
 
-    fn _introspect_signal(indent: &str, name: &String, signal: &Signal) -> String {
+    fn _introspect_signal(indent: &str, name: &str, signal: &Signal) -> String {
         let new_indent = format!("{} ", indent);
         format!(r#"{}<signal name="">\n{}{}{}</signal>\n"#,
             name,
@@ -543,7 +545,7 @@ impl IntrospectableInterface {
             indent)
     }
 
-    fn _introspect_interface(indent: &str, name: &String, iface: &Interface) -> String {
+    fn _introspect_interface(indent: &str, name: &str, iface: &Interface) -> String {
         let new_indent = format!("{} ", indent);
         format!(r#"{}<interface name="{}">\n{}{}{}{}{}</interface>\n"#,
             indent,
@@ -637,7 +639,7 @@ impl Interfaces {
         }
     }
 
-    fn _signature(args: &Vec<Argument>) -> String {
+    fn _signature(args: &[Argument]) -> String {
         args.iter()
             .map(|arg| arg.signature.clone())
             .collect::<Vec<_>>()
@@ -653,7 +655,7 @@ impl Interfaces {
                                .join(""))
     }
 
-    fn _check_signature(args: &Vec<Argument>, msg: &Message) -> bool {
+    fn _check_signature(args: &[Argument], msg: &Message) -> bool {
         let expect_sig = Self::_signature(args);
         let actual_sig = Self::_msg_signature(msg);
 
@@ -696,11 +698,11 @@ impl Interfaces {
                                 msg.add_argument(val)
                             })
                         },
-                        Err(err) => err.to_message(msg),
+                        Err(err) => err.into_message(msg),
                     }
                 } else {
                     Arguments::invalid_arguments()
-                        .to_message(msg)
+                        .into_message(msg)
                 };
 
                 match res.message_type() {
@@ -725,14 +727,12 @@ impl Interfaces {
                 };
 
                 res
+            } else if opt_iface.is_none() {
+                msg.error_message("org.freedesktop.DBus.Error.UnknownMethod")
+                   .add_argument(&format!("unknown interface: {}", iface_name))
             } else {
-                if opt_iface.is_none() {
-                    msg.error_message("org.freedesktop.DBus.Error.UnknownMethod")
-                       .add_argument(&format!("unknown interface: {}", iface_name))
-                } else {
-                    msg.error_message("org.freedesktop.DBus.Error.UnknownMethod")
-                       .add_argument(&format!("unknown method: {}", method_name))
-                }
+                msg.error_message("org.freedesktop.DBus.Error.UnknownMethod")
+                   .add_argument(&format!("unknown method: {}", method_name))
             };
 
             conn.send(res)

@@ -14,12 +14,12 @@ impl Arguments {
     }
 
     pub fn extract(&self, index: usize) -> Result<&Value, ErrorMessage> {
-        self.values.get(index).ok_or(Self::invalid_argument(index))
+        self.values.get(index).ok_or_else(|| Self::invalid_argument(index))
     }
 
     pub fn extract_string(&self, index: usize) -> Result<&String, ErrorMessage> {
         let value = try!(self.extract(index));
-        if let &Value::BasicValue(BasicValue::String(ref s)) = value {
+        if let Value::BasicValue(BasicValue::String(ref s)) = *value {
             Ok(s)
         } else {
             Err(Self::invalid_argument(index))

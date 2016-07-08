@@ -54,8 +54,8 @@ pub struct Messages<'a> {
 /// A connection to a bus.
 ///
 /// A connection is usually to either the system bus or a session bus. User services (e.g.,
-/// SecretService, notification daemons, etc.) live on the session bus while system services (e.g.,
-/// Udisks2, NetworkManager, etc.) live on the system bus.
+/// `SecretService`, notification daemons, etc.) live on the session bus while system services
+/// (e.g., `Udisks2`, `NetworkManager`, etc.) live on the system bus.
 pub struct Connection {
     conn: connection::Connection,
 }
@@ -169,9 +169,9 @@ impl Connection {
 
 fn _should_handle(message: &Message) -> bool {
     match message.message_type() {
-        MessageType::MethodCall => true,
-        MessageType::Signal     => true,
-        _                       => false,
+        MessageType::MethodCall |
+        MessageType::Signal => true,
+        _                   => false,
     }
 }
 

@@ -11,7 +11,7 @@ pub enum Error {
     /// An invalid reply was received from a method call.
     InvalidReply(String),
     /// An error message from the underlying D-Bus communication.
-    ErrorMessage(connection::Error),
+    DBusMessage(connection::Error),
     /// An object was added to a signal-receiver server.
     NoServerName,
 
@@ -33,7 +33,7 @@ impl Display for Error {
     fn fmt(&self, f: &mut Formatter) -> Result {
         match *self {
             Error::InvalidReply(ref desc)               => write!(f, "invalid reply: {}", desc),
-            Error::ErrorMessage(ref error)              => write!(f, "dbus error: {:?}", error),
+            Error::DBusMessage(ref error)               => write!(f, "dbus error: {:?}", error),
             Error::NoServerName                         => write!(f, "listening server cannot handle methods"),
             Error::ServerAlreadyRegistered(ref server)  => write!(f, "server already registered: {}", server),
             Error::NoSuchServer(ref server)             => write!(f, "no such server: {}", server),
@@ -52,15 +52,15 @@ impl error::Error for Error {
 
     fn cause(&self) -> Option<&error::Error> {
         match *self {
-            Error::ErrorMessage(ref error) => Some(error),
-            _                              => None,
+            Error::DBusMessage(ref error) => Some(error),
+            _                             => None,
         }
     }
 }
 
 impl From<connection::Error> for Error {
     fn from(error: connection::Error) -> Self {
-        Error::ErrorMessage(error)
+        Error::DBusMessage(error)
     }
 }
 
