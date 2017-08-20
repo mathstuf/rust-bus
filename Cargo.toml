@@ -12,11 +12,9 @@ readme = "README.md"
 keywords = ["dbus"]
 
 [dependencies]
-bitflags = "~0.6"
-dbus-serialize = "~0.1.1"
+bitflags = "~0.7"
+dbus-serialize = "~0.1"
+machine-id = "~0.3"
 
 [dependencies.dbus-bytestream]
 git = "https://github.com/srwalter/dbus-bytestream"
-
-[dependencies.machine-id]
-git = "https://github.com/mathstuf/rust-machine-id"
