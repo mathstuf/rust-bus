@@ -4,7 +4,7 @@
 use crates::dbus_bytestream::message;
 use crates::dbus_serialize::types::Variant;
 
-use error::Error;
+use error::*;
 use value::{BasicValue, Marshal, Value};
 
 #[derive(Debug)]
@@ -114,7 +114,8 @@ impl Message {
     }
 
     /// Unpack the argument values stored within the message.
-    pub fn values(&self) -> Result<Option<Vec<Value>>, Error> {
-        Ok(try!(self.message.get_body()))
+    pub fn values(&self) -> Result<Option<Vec<Value>>> {
+        self.message.get_body()
+            .map_err(|err| ErrorKind::ExtractArguments(err).into())
     }
 }

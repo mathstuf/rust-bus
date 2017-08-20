@@ -13,6 +13,7 @@ keywords = ["dbus"]
 
 [dependencies]
 bitflags = "~0.7"
+error-chain = "~0.10"
 dbus-serialize = "~0.1"
 machine-id = "~0.3"
 

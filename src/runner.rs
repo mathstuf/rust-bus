@@ -2,7 +2,7 @@
 // See accompanying LICENSE file for details.
 
 use connection::Connection;
-use error::Error;
+use error::*;
 use message::MessageType;
 use server::Server;
 
@@ -22,7 +22,7 @@ pub struct Runner {
 
 impl Runner {
     /// Create a new runner for the given connection.
-    pub fn new(conn: Connection) -> Result<Self, Error> {
+    pub fn new(conn: Connection) -> Result<Self> {
         Ok(Runner {
             conn: Rc::new(conn),
 
@@ -33,7 +33,7 @@ impl Runner {
 
     // FIXME: Rename to `new_listener`?
     /// Create a server which will listen for and handle signals.
-    pub fn add_listener(&mut self, name: &str) -> Result<&mut Server, Error> {
+    pub fn add_listener(&mut self, name: &str) -> Result<&mut Server> {
         let listener = try!(Server::new_listener(self.conn.clone(), name));
 
         self.listeners.push(listener);
@@ -43,22 +43,22 @@ impl Runner {
 
     // FIXME: Rename to `new_server`?
     /// Create a server which will expose objects and interfaces to the bus.
-    pub fn add_server(&mut self, name: &str) -> Result<&mut Server, Error> {
+    pub fn add_server(&mut self, name: &str) -> Result<&mut Server> {
         match self.servers.entry(name.to_owned()) {
             Entry::Vacant(v) => {
                 let server = try!(Server::new(self.conn.clone(), name));
 
                 Ok(v.insert(server))
             },
-            Entry::Occupied(_) => Err(Error::ServerAlreadyRegistered(name.to_owned())),
+            Entry::Occupied(_) => bail!(ErrorKind::ServerAlreadyRegistered(name.to_owned())),
         }
     }
 
     /// Remove a server from the bus.
-    pub fn remove_server(&mut self, name: &str) -> Result<&mut Self, Error> {
+    pub fn remove_server(&mut self, name: &str) -> Result<&mut Self> {
         match self.servers.remove(name) {
             Some(_) => Ok(self),
-            None => Err(Error::NoSuchServer(name.to_owned())),
+            None => bail!(ErrorKind::NoSuchServer(name.to_owned())),
         }
     }
 

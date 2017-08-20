@@ -6,7 +6,7 @@ use crates::machine_id::MachineId;
 
 use arguments::Arguments;
 use connection::Connection;
-use error::Error;
+use error::*;
 use message::{Message, MessageType};
 use value::{BasicValue, Dictionary, Signature, Value};
 
@@ -84,7 +84,7 @@ impl ErrorMessage {
 }
 
 /// The result of a method call.
-pub type MethodResult = Result<Vec<Value>, ErrorMessage>;
+pub type MethodResult = ::std::result::Result<Vec<Value>, ErrorMessage>;
 /// A holder for method closures.
 pub type MethodHandler = Box<RefCell<FnMut(&mut Message) -> MethodResult>>;
 
@@ -132,9 +132,9 @@ impl Method {
 }
 
 /// The result of a property query.
-pub type PropertyGetResult = Result<Value, ErrorMessage>;
+pub type PropertyGetResult = ::std::result::Result<Value, ErrorMessage>;
 /// The result of a property setting.
-pub type PropertySetResult = Result<(), ErrorMessage>;
+pub type PropertySetResult = ::std::result::Result<(), ErrorMessage>;
 
 /// A trait for read-only properties.
 pub trait PropertyReadHandler {
@@ -289,7 +289,7 @@ impl Interface {
         self
     }
 
-    fn _require_property(&self, name: &str) -> Result<&Property, ErrorMessage> {
+    fn _require_property(&self, name: &str) -> ::std::result::Result<&Property, ErrorMessage> {
         self.properties.get(name).ok_or_else(|| {
             ErrorMessage::new("org.freedesktop.DBus.Error.UnknownProperty",
                               &format!("unknown property: {}", name))
@@ -366,7 +366,7 @@ pub type ChildrenList = Rc<RefCell<Vec<String>>>;
 type ChildrenListRef = Weak<RefCell<Vec<String>>>;
 
 fn require_interface<'a>(map: &'a Ref<'a, Map<Interface>>, name: &str)
-                         -> Result<&'a Interface, ErrorMessage> {
+                         -> ::std::result::Result<&'a Interface, ErrorMessage> {
     map.get(name).ok_or(ErrorMessage {
         name: "org.freedesktop.DBus.Error.UnknownInterface".to_owned(),
         message: format!("unknown interface: {}", name),
@@ -605,20 +605,20 @@ impl InterfacesBuilder {
     // Marked as mut for intent; Rc<> doesn't require it though.
     #[allow(unused_mut)]
     /// Add an interface to the set.
-    pub fn add_interface(mut self, name: &str, iface: Interface) -> Result<Self, Error> {
+    pub fn add_interface(mut self, name: &str, iface: Interface) -> Result<Self> {
         {
-                let mut map = self.map.borrow_mut();
+            let mut map = self.map.borrow_mut();
 
-                match map.entry(name.to_owned()) {
-                    Entry::Vacant(v) => {
-                        v.insert(iface);
+            match map.entry(name.to_owned()) {
+                Entry::Vacant(v) => {
+                    v.insert(iface);
 
-                        Ok(())
-                    },
-                    Entry::Occupied(_) => Err(Error::InterfaceAlreadyRegistered(name.to_owned())),
-                }
+                    Ok(())
+                },
+                Entry::Occupied(_) => bail!(ErrorKind::InterfaceAlreadyRegistered(name.to_owned())),
             }
-            .map(|_| self)
+        }
+        .map(|_| self)
     }
 
     /// Finalize the interface set.
@@ -628,7 +628,7 @@ impl InterfacesBuilder {
     /// `org.freedesktop.DBus.Introspectable` standard interfaces to the object.
     ///
     /// Once this is called, further interfaces may not be added once this is called.
-    pub fn finalize(mut self, children: &ChildrenList) -> Result<Interfaces, Error> {
+    pub fn finalize(mut self, children: &ChildrenList) -> Result<Interfaces> {
         self = try!(Ok(self)
             .and_then(|this| {
                 this.add_interface("org.freedesktop.DBus.Peer", PeerInterface::new())
@@ -703,7 +703,7 @@ impl Interfaces {
     ///
     /// If the method returns values which do not match its signature, a panic will occur since
     /// this is a bug in the implementation.
-    pub fn handle(&self, conn: &Connection, msg: &mut Message) -> Option<Result<(), ()>> {
+    pub fn handle(&self, conn: &Connection, msg: &mut Message) -> Option<::std::result::Result<(), ()>> {
         CallHeaders::new(msg).map(|hdrs| {
             let iface_name = hdrs.interface;
             let method_name = hdrs.method;

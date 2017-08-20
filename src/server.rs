@@ -4,7 +4,7 @@
 use crates::core::ops::DerefMut;
 
 use connection::{Connection, ReleaseNameReply, DO_NOT_QUEUE};
-use error::Error;
+use error::*;
 use interface::InterfacesBuilder;
 use message::{Message, MessageType};
 use object::Object;
@@ -41,7 +41,7 @@ pub struct Server {
 
 impl Server {
     /// Create a new `Server` to listen for signals.
-    pub fn new_listener(conn: Rc<Connection>, name: &str) -> Result<Self, Error> {
+    pub fn new_listener(conn: Rc<Connection>, name: &str) -> Result<Self> {
         Ok(Server {
             conn: conn,
             name: name.to_owned(),
@@ -54,7 +54,7 @@ impl Server {
     }
 
     /// Create a new `Server` to handle method calls from the bus.
-    pub fn new(conn: Rc<Connection>, name: &str) -> Result<Self, Error> {
+    pub fn new(conn: Rc<Connection>, name: &str) -> Result<Self> {
         try!(conn.request_name(name, DO_NOT_QUEUE));
 
         // TODO: Add match for the server.
@@ -78,9 +78,9 @@ impl Server {
     }
 
     /// Add an object to the server with the given interfaces.
-    pub fn add_object(&mut self, path: &str, ifaces: InterfacesBuilder) -> Result<&mut Self, Error> {
+    pub fn add_object(&mut self, path: &str, ifaces: InterfacesBuilder) -> Result<&mut Self> {
         if !self.can_handle {
-            return Err(Error::NoServerName);
+            bail!(ErrorKind::NoServerName);
         }
 
         // TODO: Validate the path is valid.
@@ -98,15 +98,15 @@ impl Server {
 
                     Ok(())
                 },
-                Entry::Occupied(_) => Err(Error::PathAlreadyRegistered(path.to_owned())),
+                Entry::Occupied(_) => bail!(ErrorKind::PathAlreadyRegistered(path.to_owned())),
             }
             .map(|_| self)
     }
 
     /// Remove an object from the server.
-    pub fn remove_object(&mut self, path: &str) -> Result<&mut Self, Error> {
+    pub fn remove_object(&mut self, path: &str) -> Result<&mut Self> {
         if !self.can_handle {
-            return Err(Error::NoServerName);
+            bail!(ErrorKind::NoServerName);
         }
 
         match self.objects.remove(path) {
@@ -115,14 +115,14 @@ impl Server {
 
                 Ok(self)
             },
-            None => Err(Error::NoSuchPath(path.to_owned())),
+            None => bail!(ErrorKind::NoSuchPath(path.to_owned())),
         }
     }
 
     /// Connect a handler to a specific object's signal.
     ///
     /// This will register a callback to listen to a specific object's signals.
-    pub fn connect<F>(&mut self, signal: Target, callback: F) -> Result<&mut Self, Error>
+    pub fn connect<F>(&mut self, signal: Target, callback: F) -> Result<&mut Self>
         where F: FnMut(&Connection, &Target) -> () + 'static
     {
         let dbus_match = format!("type='signal',interface='{}',path='{}',member='{}'",
@@ -140,7 +140,7 @@ impl Server {
     ///
     /// Any object underneath the requested object path's hierarchy emitting the requested signal
     /// will trigger the callback.
-    pub fn connect_namespace<F>(&mut self, signal: Target, callback: F) -> Result<&mut Self, Error>
+    pub fn connect_namespace<F>(&mut self, signal: Target, callback: F) -> Result<&mut Self>
         where F: FnMut(&Connection, &Target) -> () + 'static
     {
         let dbus_match = format!("type='signal',interface='{}',path_namespace='{}',member='{}'",

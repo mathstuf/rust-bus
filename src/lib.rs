@@ -14,6 +14,9 @@
 #[macro_use]
 extern crate bitflags;
 
+#[macro_use]
+extern crate error_chain;
+
 mod crates {
     pub extern crate core;
     pub extern crate dbus_bytestream;

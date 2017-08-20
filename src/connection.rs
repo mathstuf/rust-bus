@@ -3,7 +3,7 @@
 
 use crates::dbus_bytestream::connection;
 
-use error::Error;
+use error::*;
 use message::{Message, MessageType};
 use value::{BasicValue, Value};
 
@@ -64,14 +64,14 @@ impl Connection {
     // TODO: Expose other connection methods?
 
     /// Connect to the session bus.
-    pub fn session_new() -> Result<Self, Error> {
+    pub fn session_new() -> Result<Self> {
         Ok(Connection {
             conn: try!(connection::Connection::connect_session()),
         })
     }
 
     /// Connect to the system bus.
-    pub fn system_new() -> Result<Self, Error> {
+    pub fn system_new() -> Result<Self> {
         Ok(Connection {
             conn: try!(connection::Connection::connect_system()),
         })
@@ -84,7 +84,7 @@ impl Connection {
     /// reverse domain name format and use CamelCase for application-level names (e.g.,
     /// `com.example.Application`).
     pub fn request_name(&self, name: &str, flags: RequestNameFlags)
-                        -> Result<RequestNameReply, Error> {
+                        -> Result<RequestNameReply> {
         // TODO: Use an actual struct with an API for this.
         let msg = Message::new_method_call("org.freedesktop.DBus",
                                            "/org/freedesktop/DBus",
@@ -99,18 +99,18 @@ impl Connection {
                     2 => Ok(RequestNameReply::InQueue),
                     3 => Ok(RequestNameReply::Exists),
                     4 => Ok(RequestNameReply::AlreadyOwner),
-                    _ => Err(Error::InvalidReply(format!("RequestName: invalid response {}", r))),
+                    _ => bail!(ErrorKind::InvalidReply(format!("RequestName: invalid response {}", r))),
                 }
             } else {
-                return Err(Error::InvalidReply("RequestName: invalid response".to_owned()));
+                bail!(ErrorKind::InvalidReply("RequestName: invalid response".to_owned()));
             }
         } else {
-            return Err(Error::InvalidReply("RequestName: no response".to_owned()));
+            bail!(ErrorKind::InvalidReply("RequestName: no response".to_owned()));
         }
     }
 
     /// Release a name on the bus.
-    pub fn release_name(&self, name: &str) -> Result<ReleaseNameReply, Error> {
+    pub fn release_name(&self, name: &str) -> Result<ReleaseNameReply> {
         // TODO: Use an actual struct with an API for this.
         let msg = Message::new_method_call("org.freedesktop.DBus",
                                            "/org/freedesktop/DBus",
@@ -123,13 +123,13 @@ impl Connection {
                     1 => Ok(ReleaseNameReply::Released),
                     2 => Ok(ReleaseNameReply::NonExistent),
                     3 => Ok(ReleaseNameReply::NotOwner),
-                    _ => Err(Error::InvalidReply(format!("ReleaseName: invalid response {}", r))),
+                    _ => bail!(ErrorKind::InvalidReply(format!("ReleaseName: invalid response {}", r))),
                 }
             } else {
-                return Err(Error::InvalidReply("ReleaseName: invalid response".to_owned()));
+                bail!(ErrorKind::InvalidReply("ReleaseName: invalid response".to_owned()));
             }
         } else {
-            return Err(Error::InvalidReply("ReleaseName: no response".to_owned()));
+            bail!(ErrorKind::InvalidReply("ReleaseName: no response".to_owned()));
         }
     }
 
@@ -140,7 +140,7 @@ impl Connection {
     ///
     /// The match syntax is documented in the [D-Bus
     /// specification](https://dbus.freedesktop.org/doc/dbus-specification.html#message-bus-routing).
-    pub fn add_match(&self, match_rule: &str) -> Result<(), Error> {
+    pub fn add_match(&self, match_rule: &str) -> Result<()> {
         let msg = Message::new_method_call("org.freedesktop.DBus",
                                            "/org/freedesktop/DBus",
                                            "org.freedesktop.DBus",
@@ -153,7 +153,7 @@ impl Connection {
     /// Send a `Message` on the bus.
     ///
     /// On success, returns the serial number of the message.
-    pub fn send(&self, msg: Message) -> Result<u32, Error> {
+    pub fn send(&self, msg: Message) -> Result<u32> {
         Ok(try!(self.conn.send(msg.message)))
     }
 
