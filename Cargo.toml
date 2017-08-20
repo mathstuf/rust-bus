@@ -6,17 +6,17 @@ license = "BSD-3-Clause"
 description = """
 Library for exposing a D-Bus interface.
 """
+repository = "https://github.com/mathstuf/rust-bus"
+documentation = "https://docs.rs/rust-bus/~0.12"
+readme = "README.md"
+keywords = ["dbus"]
 
 [dependencies]
 bitflags = "~0.6"
 dbus-serialize = "~0.1.1"
 
 [dependencies.dbus-bytestream]
-git = "https://github.com/srwalter/dbus-bytestream.git"
+git = "https://github.com/srwalter/dbus-bytestream"
 
 [dependencies.machine-id]
 git = "https://github.com/mathstuf/rust-machine-id"
-
-[lib]
-name = "bus"
-path = "src/lib.rs"
