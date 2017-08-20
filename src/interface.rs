@@ -408,9 +408,9 @@ struct PropertyInterface;
 
 impl PropertyInterface {
     fn get_property(map: InterfaceMapRef, m: &mut Message) -> MethodResult {
-        let values = try!(Arguments::new(m));
-        let iface = try!(values.extract_string(0));
-        let property = try!(values.extract_string(1));
+        let values = Arguments::new(m)?;
+        let iface = values.extract_string(0)?;
+        let property = values.extract_string(1)?;
 
         let smap = map.upgrade().expect("get_property: interface map no longer exists?");
         let smap_ref = &smap.borrow();
@@ -419,10 +419,10 @@ impl PropertyInterface {
     }
 
     fn set_property(map: InterfaceMapRef, m: &mut Message) -> MethodResult {
-        let values = try!(Arguments::new(m));
-        let iface = try!(values.extract_string(0));
-        let property = try!(values.extract_string(1));
-        let value = try!(values.extract(2));
+        let values = Arguments::new(m)?;
+        let iface = values.extract_string(0)?;
+        let property = values.extract_string(1)?;
+        let value = values.extract(2)?;
 
         let smap = map.upgrade().expect("get_property: interface map no longer exists?");
         let smap_ref = &smap.borrow();
@@ -432,8 +432,8 @@ impl PropertyInterface {
     }
 
     fn get_all_properties(map: InterfaceMapRef, m: &mut Message) -> MethodResult {
-        let values = try!(Arguments::new(m));
-        let iface = try!(values.extract_string(0));
+        let values = Arguments::new(m)?;
+        let iface = values.extract_string(0)?;
 
         let smap = map.upgrade().expect("get_property: interface map no longer exists?");
         let smap_ref = &smap.borrow();
@@ -629,7 +629,7 @@ impl InterfacesBuilder {
     ///
     /// Once this is called, further interfaces may not be added once this is called.
     pub fn finalize(mut self, children: &ChildrenList) -> Result<Interfaces> {
-        self = try!(Ok(self)
+        self = Ok(self)
             .and_then(|this| {
                 this.add_interface("org.freedesktop.DBus.Peer", PeerInterface::new())
             })
@@ -642,7 +642,7 @@ impl InterfacesBuilder {
                 let map_ref = Rc::downgrade(&this.map);
                 this.add_interface("org.freedesktop.DBus.Introspectable",
                                    IntrospectableInterface::new(map_ref, Rc::downgrade(children)))
-            }));
+            })?;
 
         Ok(Interfaces {
             map: self.map,

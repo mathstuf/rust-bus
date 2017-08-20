@@ -66,14 +66,14 @@ impl Connection {
     /// Connect to the session bus.
     pub fn session_new() -> Result<Self> {
         Ok(Connection {
-            conn: try!(connection::Connection::connect_session()),
+            conn: connection::Connection::connect_session()?,
         })
     }
 
     /// Connect to the system bus.
     pub fn system_new() -> Result<Self> {
         Ok(Connection {
-            conn: try!(connection::Connection::connect_system()),
+            conn: connection::Connection::connect_system()?,
         })
     }
 
@@ -92,7 +92,7 @@ impl Connection {
                                            "RequestName")
             .add_argument(&name)
             .add_argument(&flags.bits);
-        if let Some(mut results) = try!(self.conn.call_sync(msg.message)) {
+        if let Some(mut results) = self.conn.call_sync(msg.message)? {
             if let Some(Value::BasicValue(BasicValue::Uint32(r))) = results.pop() {
                 match r {
                     1 => Ok(RequestNameReply::PrimaryOwner),
@@ -117,7 +117,7 @@ impl Connection {
                                            "org.freedesktop.DBus",
                                            "ReleaseName")
             .add_argument(&name);
-        if let Some(mut results) = try!(self.conn.call_sync(msg.message)) {
+        if let Some(mut results) = self.conn.call_sync(msg.message)? {
             if let Some(Value::BasicValue(BasicValue::Uint32(r))) = results.pop() {
                 match r {
                     1 => Ok(ReleaseNameReply::Released),
@@ -146,7 +146,7 @@ impl Connection {
                                            "org.freedesktop.DBus",
                                            "AddMatch")
             .add_argument(&match_rule);
-        try!(self.conn.call_sync(msg.message));
+        self.conn.call_sync(msg.message)?;
         Ok(())
     }
 
@@ -154,7 +154,7 @@ impl Connection {
     ///
     /// On success, returns the serial number of the message.
     pub fn send(&self, msg: Message) -> Result<u32> {
-        Ok(try!(self.conn.send(msg.message)))
+        Ok(self.conn.send(msg.message)?)
     }
 
     /// An iterator over messages received over the bus.

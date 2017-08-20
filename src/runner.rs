@@ -34,7 +34,7 @@ impl Runner {
     // FIXME: Rename to `new_listener`?
     /// Create a server which will listen for and handle signals.
     pub fn add_listener(&mut self, name: &str) -> Result<&mut Server> {
-        let listener = try!(Server::new_listener(self.conn.clone(), name));
+        let listener = Server::new_listener(self.conn.clone(), name)?;
 
         self.listeners.push(listener);
 
@@ -46,7 +46,7 @@ impl Runner {
     pub fn add_server(&mut self, name: &str) -> Result<&mut Server> {
         match self.servers.entry(name.to_owned()) {
             Entry::Vacant(v) => {
-                let server = try!(Server::new(self.conn.clone(), name));
+                let server = Server::new(self.conn.clone(), name)?;
 
                 Ok(v.insert(server))
             },

@@ -12,7 +12,7 @@ pub struct Arguments {
 impl Arguments {
     pub fn new(msg: &Message) -> Result<Arguments, ErrorMessage> {
         Ok(Arguments {
-            values: try!(msg.values().ok().and_then(|x| x).ok_or(Self::invalid_arguments())),
+            values: msg.values().ok().and_then(|x| x).ok_or(Self::invalid_arguments())?,
         })
     }
 
@@ -21,7 +21,7 @@ impl Arguments {
     }
 
     pub fn extract_string(&self, index: usize) -> Result<&String, ErrorMessage> {
-        let value = try!(self.extract(index));
+        let value = self.extract(index)?;
         if let Value::BasicValue(BasicValue::String(ref s)) = *value {
             Ok(s)
         } else {

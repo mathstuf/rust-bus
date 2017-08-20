@@ -55,7 +55,7 @@ impl Server {
 
     /// Create a new `Server` to handle method calls from the bus.
     pub fn new(conn: Rc<Connection>, name: &str) -> Result<Self> {
-        try!(conn.request_name(name, DO_NOT_QUEUE));
+        conn.request_name(name, DO_NOT_QUEUE)?;
 
         // TODO: Add match for the server.
         // TODO: add root object
@@ -89,7 +89,7 @@ impl Server {
                 Entry::Vacant(v) => {
                     // TODO: store this
                     let children = Rc::new(RefCell::new(vec![]));
-                    let finalized_ifaces = try!(ifaces.finalize(&children));
+                    let finalized_ifaces = ifaces.finalize(&children)?;
                     let obj = Object::new(path, finalized_ifaces);
 
                     // TODO: emit InterfacesAdded signal
@@ -129,7 +129,7 @@ impl Server {
                                  signal.interface,
                                  signal.object,
                                  signal.method);
-        try!(self.conn.add_match(&dbus_match));
+        self.conn.add_match(&dbus_match)?;
 
         _add_handler(&mut self.signals, signal, Rc::new(RefCell::new(callback)));
 
@@ -147,7 +147,7 @@ impl Server {
                                  signal.interface,
                                  signal.object,
                                  signal.method);
-        try!(self.conn.add_match(&dbus_match));
+        self.conn.add_match(&dbus_match)?;
 
         _add_handler(&mut self.namespace_signals,
                      signal,
