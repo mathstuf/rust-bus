@@ -90,7 +90,7 @@ impl Server {
                     // TODO: store this
                     let children = Rc::new(RefCell::new(vec![]));
                     let finalized_ifaces = try!(ifaces.finalize(&children));
-                    let obj = try!(Object::new(path, finalized_ifaces));
+                    let obj = Object::new(path, finalized_ifaces);
 
                     // TODO: emit InterfacesAdded signal
 

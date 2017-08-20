@@ -2,7 +2,6 @@
 // See accompanying LICENSE file for details.
 
 use connection::Connection;
-use error::Error;
 use interface::Interfaces;
 use message::Message;
 
@@ -17,11 +16,11 @@ impl Object {
     /// Create a new object with the given path, interfaces, and children.
     ///
     /// The list of children is managed by the object owning the object.
-    pub fn new(path: &str, interfaces: Interfaces) -> Result<Self, Error> {
-        Ok(Object {
+    pub fn new(path: &str, interfaces: Interfaces) -> Self {
+        Object {
             path: path.to_owned(),
             interfaces: interfaces,
-        })
+        }
     }
 
     /// The path of the object on the bus.
