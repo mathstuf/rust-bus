@@ -41,7 +41,9 @@ pub struct Server {
 
 impl Server {
     /// Create a new `Server` to listen for signals.
-    pub fn new_listener(conn: Rc<Connection>, name: &str) -> Result<Self> {
+    pub fn new_listener<N>(conn: Rc<Connection>, name: N) -> Result<Self>
+        where N: ToString,
+    {
         Ok(Server {
             conn: conn,
             name: name.to_string(),
@@ -54,8 +56,11 @@ impl Server {
     }
 
     /// Create a new `Server` to handle method calls from the bus.
-    pub fn new(conn: Rc<Connection>, name: &str) -> Result<Self> {
-        conn.request_name(name, DO_NOT_QUEUE)?;
+    pub fn new<N>(conn: Rc<Connection>, name: N) -> Result<Self>
+        where N: ToString,
+    {
+        let name = name.to_string();
+        conn.request_name(&name, DO_NOT_QUEUE)?;
 
         // TODO: Add match for the server.
         // TODO: add root object
@@ -63,7 +68,7 @@ impl Server {
 
         Ok(Server {
             conn: conn,
-            name: name.to_string(),
+            name: name,
             can_handle: true,
 
             objects: BTreeMap::new(),
@@ -78,7 +83,9 @@ impl Server {
     }
 
     /// Add an object to the server with the given interfaces.
-    pub fn add_object(&mut self, path: &str, ifaces: InterfacesBuilder) -> Result<&mut Self> {
+    pub fn add_object<P>(&mut self, path: P, ifaces: InterfacesBuilder) -> Result<&mut Self>
+        where P: ToString,
+    {
         if !self.can_handle {
             bail!(ErrorKind::NoServerName);
         }
@@ -86,36 +93,38 @@ impl Server {
         // TODO: Validate the path is valid.
 
         match self.objects.entry(path.to_string()) {
-                Entry::Vacant(v) => {
-                    // TODO: store this
-                    let children = Rc::new(RefCell::new(vec![]));
-                    let finalized_ifaces = ifaces.finalize(&children)?;
-                    let obj = Object::new(path, finalized_ifaces);
+            Entry::Vacant(v) => {
+                // TODO: store this
+                let children = Rc::new(RefCell::new(vec![]));
+                let finalized_ifaces = ifaces.finalize(&children)?;
+                let obj = Object::new(path, finalized_ifaces);
 
-                    // TODO: emit InterfacesAdded signal
+                // TODO: emit InterfacesAdded signal
 
-                    v.insert(obj);
+                v.insert(obj);
 
-                    Ok(())
-                },
-                Entry::Occupied(_) => bail!(ErrorKind::PathAlreadyRegistered(path.to_string())),
-            }
-            .map(|_| self)
+                Ok(())
+            },
+            Entry::Occupied(_) => bail!(ErrorKind::PathAlreadyRegistered(path.to_string())),
+        }
+        .map(|_| self)
     }
 
     /// Remove an object from the server.
-    pub fn remove_object(&mut self, path: &str) -> Result<&mut Self> {
+    pub fn remove_object<P>(&mut self, path: P) -> Result<&mut Self>
+        where P: AsRef<str>,
+    {
         if !self.can_handle {
             bail!(ErrorKind::NoServerName);
         }
 
-        match self.objects.remove(path) {
+        match self.objects.remove(path.as_ref()) {
             Some(_) => {
                 // TODO: emit InterfacesRemoved signal
 
                 Ok(self)
             },
-            None => bail!(ErrorKind::NoSuchPath(path.to_string())),
+            None => bail!(ErrorKind::NoSuchPath(path.as_ref().to_string())),
         }
     }
 

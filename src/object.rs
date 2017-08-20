@@ -16,7 +16,9 @@ impl Object {
     /// Create a new object with the given path, interfaces, and children.
     ///
     /// The list of children is managed by the object owning the object.
-    pub fn new(path: &str, interfaces: Interfaces) -> Self {
+    pub fn new<P>(path: P, interfaces: Interfaces) -> Self
+        where P: ToString,
+    {
         Object {
             path: path.to_string(),
             interfaces: interfaces,

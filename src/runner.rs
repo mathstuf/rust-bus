@@ -43,7 +43,9 @@ impl Runner {
 
     // FIXME: Rename to `new_server`?
     /// Create a server which will expose objects and interfaces to the bus.
-    pub fn add_server(&mut self, name: &str) -> Result<&mut Server> {
+    pub fn add_server<N>(&mut self, name: N) -> Result<&mut Server>
+        where N: ToString,
+    {
         match self.servers.entry(name.to_string()) {
             Entry::Vacant(v) => {
                 let server = Server::new(self.conn.clone(), name)?;
@@ -55,10 +57,12 @@ impl Runner {
     }
 
     /// Remove a server from the bus.
-    pub fn remove_server(&mut self, name: &str) -> Result<&mut Self> {
-        match self.servers.remove(name) {
+    pub fn remove_server<N>(&mut self, name: N) -> Result<&mut Self>
+        where N: AsRef<str>,
+    {
+        match self.servers.remove(name.as_ref()) {
             Some(_) => Ok(self),
-            None => bail!(ErrorKind::NoSuchServer(name.to_string())),
+            None => bail!(ErrorKind::NoSuchServer(name.as_ref().to_string())),
         }
     }
 

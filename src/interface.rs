@@ -27,7 +27,10 @@ impl Argument {
     ///
     /// The signature string specification is documented in the [D-Bus
     /// specification](https://dbus.freedesktop.org/doc/dbus-specification.html#basic-types).
-    pub fn new(name: &str, sig: &str) -> Self {
+    pub fn new<N, S>(name: N, sig: S) -> Self
+        where N: ToString,
+              S: ToString,
+    {
         // TODO: make a builder for the signature type.
         Argument {
             name: name.to_string(),
@@ -52,7 +55,10 @@ impl Annotation {
     ///
     /// For some well-known annotations, see the [D-Bus
     /// specification](https://dbus.freedesktop.org/doc/dbus-specification.html#introspection-format).
-    pub fn new(name: &str, value: &str) -> Self {
+    pub fn new<N, V>(name: N, value: V) -> Self
+        where N: ToString,
+              V: ToString,
+    {
         Annotation {
             name: name.to_string(),
             value: value.to_string(),
@@ -70,7 +76,10 @@ impl ErrorMessage {
     /// Create a new error message.
     ///
     /// Error message names usually contain `.Error.`.
-    pub fn new(name: &str, message: &str) -> Self {
+    pub fn new<N, M>(name: N, message: M) -> Self
+        where N: ToString,
+              M: ToString,
+    {
         ErrorMessage {
             name: name.to_string(),
             message: message.to_string(),
@@ -257,26 +266,34 @@ impl Interface {
     }
 
     /// Add a method to the interface.
-    pub fn add_method(mut self, name: &str, method: Method) -> Self {
+    pub fn add_method<N>(mut self, name: N, method: Method) -> Self
+        where N: ToString,
+    {
         self.methods.insert(name.to_string(), method);
 
         self
     }
 
     /// Add a property to the interface.
-    pub fn add_property(mut self, name: &str, property: Property) -> Self {
+    pub fn add_property<N>(mut self, name: N, property: Property) -> Self
+        where N: ToString,
+    {
         self.properties.insert(name.to_string(), property);
 
         self
     }
 
     /// Get a property from the interface.
-    pub fn get_property(&self, name: &str) -> Option<&Property> {
-        self.properties.get(name)
+    pub fn get_property<N>(&self, name: N) -> Option<&Property>
+        where N: AsRef<str>,
+    {
+        self.properties.get(name.as_ref())
     }
 
     /// Add a signal to the interface.
-    pub fn add_signal(mut self, name: &str, signal: Signal) -> Self {
+    pub fn add_signal<N>(mut self, name: &str, signal: Signal) -> Self
+        where N: ToString,
+    {
         self.signals.insert(name.to_string(), signal);
 
         self
@@ -605,7 +622,9 @@ impl InterfacesBuilder {
     // Marked as mut for intent; Rc<> doesn't require it though.
     #[allow(unused_mut)]
     /// Add an interface to the set.
-    pub fn add_interface(mut self, name: &str, iface: Interface) -> Result<Self> {
+    pub fn add_interface<N>(mut self, name: N, iface: Interface) -> Result<Self>
+        where N: ToString,
+    {
         {
             let mut map = self.map.borrow_mut();
 

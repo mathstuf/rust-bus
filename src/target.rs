@@ -22,7 +22,11 @@ struct SignalHeaders {
 
 impl Target {
     /// Create a new `Target` structure.
-    pub fn new<I: ToString, O: ToString, M: ToString>(interface: I, object: O, method: M) -> Self {
+    pub fn new<I, O, M>(interface: I, object: O, method: M) -> Self
+        where I: ToString,
+              O: ToString,
+              M: ToString,
+    {
         Target {
             interface: interface.to_string(),
             object: object.to_string(),
