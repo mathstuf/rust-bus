@@ -44,13 +44,13 @@ impl Runner {
     // FIXME: Rename to `new_server`?
     /// Create a server which will expose objects and interfaces to the bus.
     pub fn add_server(&mut self, name: &str) -> Result<&mut Server> {
-        match self.servers.entry(name.to_owned()) {
+        match self.servers.entry(name.to_string()) {
             Entry::Vacant(v) => {
                 let server = Server::new(self.conn.clone(), name)?;
 
                 Ok(v.insert(server))
             },
-            Entry::Occupied(_) => bail!(ErrorKind::ServerAlreadyRegistered(name.to_owned())),
+            Entry::Occupied(_) => bail!(ErrorKind::ServerAlreadyRegistered(name.to_string())),
         }
     }
 
@@ -58,7 +58,7 @@ impl Runner {
     pub fn remove_server(&mut self, name: &str) -> Result<&mut Self> {
         match self.servers.remove(name) {
             Some(_) => Ok(self),
-            None => bail!(ErrorKind::NoSuchServer(name.to_owned())),
+            None => bail!(ErrorKind::NoSuchServer(name.to_string())),
         }
     }
 

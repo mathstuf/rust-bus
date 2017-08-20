@@ -44,7 +44,7 @@ impl Server {
     pub fn new_listener(conn: Rc<Connection>, name: &str) -> Result<Self> {
         Ok(Server {
             conn: conn,
-            name: name.to_owned(),
+            name: name.to_string(),
             can_handle: false,
 
             objects: BTreeMap::new(),
@@ -63,7 +63,7 @@ impl Server {
 
         Ok(Server {
             conn: conn,
-            name: name.to_owned(),
+            name: name.to_string(),
             can_handle: true,
 
             objects: BTreeMap::new(),
@@ -85,7 +85,7 @@ impl Server {
 
         // TODO: Validate the path is valid.
 
-        match self.objects.entry(path.to_owned()) {
+        match self.objects.entry(path.to_string()) {
                 Entry::Vacant(v) => {
                     // TODO: store this
                     let children = Rc::new(RefCell::new(vec![]));
@@ -98,7 +98,7 @@ impl Server {
 
                     Ok(())
                 },
-                Entry::Occupied(_) => bail!(ErrorKind::PathAlreadyRegistered(path.to_owned())),
+                Entry::Occupied(_) => bail!(ErrorKind::PathAlreadyRegistered(path.to_string())),
             }
             .map(|_| self)
     }
@@ -115,7 +115,7 @@ impl Server {
 
                 Ok(self)
             },
-            None => bail!(ErrorKind::NoSuchPath(path.to_owned())),
+            None => bail!(ErrorKind::NoSuchPath(path.to_string())),
         }
     }
 

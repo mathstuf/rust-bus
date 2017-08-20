@@ -18,7 +18,7 @@ impl Object {
     /// The list of children is managed by the object owning the object.
     pub fn new(path: &str, interfaces: Interfaces) -> Self {
         Object {
-            path: path.to_owned(),
+            path: path.to_string(),
             interfaces: interfaces,
         }
     }

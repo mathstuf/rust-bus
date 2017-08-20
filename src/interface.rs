@@ -30,8 +30,8 @@ impl Argument {
     pub fn new(name: &str, sig: &str) -> Self {
         // TODO: make a builder for the signature type.
         Argument {
-            name: name.to_owned(),
-            signature: sig.to_owned(),
+            name: name.to_string(),
+            signature: sig.to_string(),
         }
     }
 }
@@ -54,8 +54,8 @@ impl Annotation {
     /// specification](https://dbus.freedesktop.org/doc/dbus-specification.html#introspection-format).
     pub fn new(name: &str, value: &str) -> Self {
         Annotation {
-            name: name.to_owned(),
-            value: value.to_owned(),
+            name: name.to_string(),
+            value: value.to_string(),
         }
     }
 }
@@ -72,8 +72,8 @@ impl ErrorMessage {
     /// Error message names usually contain `.Error.`.
     pub fn new(name: &str, message: &str) -> Self {
         ErrorMessage {
-            name: name.to_owned(),
-            message: message.to_owned(),
+            name: name.to_string(),
+            message: message.to_string(),
         }
     }
 
@@ -258,14 +258,14 @@ impl Interface {
 
     /// Add a method to the interface.
     pub fn add_method(mut self, name: &str, method: Method) -> Self {
-        self.methods.insert(name.to_owned(), method);
+        self.methods.insert(name.to_string(), method);
 
         self
     }
 
     /// Add a property to the interface.
     pub fn add_property(mut self, name: &str, property: Property) -> Self {
-        self.properties.insert(name.to_owned(), property);
+        self.properties.insert(name.to_string(), property);
 
         self
     }
@@ -277,7 +277,7 @@ impl Interface {
 
     /// Add a signal to the interface.
     pub fn add_signal(mut self, name: &str, signal: Signal) -> Self {
-        self.signals.insert(name.to_owned(), signal);
+        self.signals.insert(name.to_string(), signal);
 
         self
     }
@@ -304,7 +304,7 @@ impl Interface {
                 PropertyAccess::RW(ref rw) => rw.get(),
                 PropertyAccess::WO(_) => {
                     Err(ErrorMessage {
-                        name: "org.freedesktop.DBus.Error.Failed".to_owned(),
+                        name: "org.freedesktop.DBus.Error.Failed".to_string(),
                         message: format!("property is write-only: {}", name),
                     })
                 },
@@ -368,7 +368,7 @@ type ChildrenListRef = Weak<RefCell<Vec<String>>>;
 fn require_interface<'a>(map: &'a Ref<'a, Map<Interface>>, name: &str)
                          -> ::std::result::Result<&'a Interface, ErrorMessage> {
     map.get(name).ok_or(ErrorMessage {
-        name: "org.freedesktop.DBus.Error.UnknownInterface".to_owned(),
+        name: "org.freedesktop.DBus.Error.UnknownInterface".to_string(),
         message: format!("unknown interface: {}", name),
     })
 }
@@ -483,7 +483,7 @@ impl IntrospectableInterface {
                           env!("CARGO_PKG_VERSION"),
                           Self::_to_string_map(&*smap.borrow(),
                                                |k, v| Self::_introspect_interface(" ", k, v)),
-                          schildren.borrow().iter().fold("".to_owned(), |p, name| {
+                          schildren.borrow().iter().fold(String::new(), |p, name| {
                               format!(r#"{} <node name="{}" />"#, p, name)
                           }));
         Ok(vec![Value::BasicValue(BasicValue::String(xml))])
@@ -492,13 +492,13 @@ impl IntrospectableInterface {
     fn _to_string_map<K, V, F>(map: &BTreeMap<K, V>, f: F) -> String
         where F: Fn(&K, &V) -> String
     {
-        map.iter().fold("".to_owned(), |p, (k, v)| format!("{}{}", p, f(k, v)))
+        map.iter().fold(String::new(), |p, (k, v)| format!("{}{}", p, f(k, v)))
     }
 
     fn _to_string_list<T, F>(map: &[T], f: F) -> String
         where F: Fn(&T) -> String
     {
-        map.iter().fold("".to_owned(), |p, t| format!("{}{}", p, f(t)))
+        map.iter().fold(String::new(), |p, t| format!("{}{}", p, f(t)))
     }
 
     fn _introspect_annotation(indent: &str, ann: &Annotation) -> String {
@@ -609,13 +609,13 @@ impl InterfacesBuilder {
         {
             let mut map = self.map.borrow_mut();
 
-            match map.entry(name.to_owned()) {
+            match map.entry(name.to_string()) {
                 Entry::Vacant(v) => {
                     v.insert(iface);
 
                     Ok(())
                 },
-                Entry::Occupied(_) => bail!(ErrorKind::InterfaceAlreadyRegistered(name.to_owned())),
+                Entry::Occupied(_) => bail!(ErrorKind::InterfaceAlreadyRegistered(name.to_string())),
             }
         }
         .map(|_| self)
@@ -668,9 +668,9 @@ impl Interfaces {
     fn _msg_signature(msg: &Message) -> String {
         msg.values()
             .unwrap()
-            .map_or_else(|| "".to_owned(), |vs| {
+            .map_or_else(String::new, |vs| {
                 vs.iter()
-                    .map(|v| v.get_signature().to_owned())
+                    .map(|v| v.get_signature().to_string())
                     .collect::<Vec<_>>()
                     .join("")
             })

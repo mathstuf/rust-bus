@@ -102,10 +102,10 @@ impl Connection {
                     _ => bail!(ErrorKind::InvalidReply(format!("RequestName: invalid response {}", r))),
                 }
             } else {
-                bail!(ErrorKind::InvalidReply("RequestName: invalid response".to_owned()));
+                bail!(ErrorKind::InvalidReply("RequestName: invalid response".to_string()));
             }
         } else {
-            bail!(ErrorKind::InvalidReply("RequestName: no response".to_owned()));
+            bail!(ErrorKind::InvalidReply("RequestName: no response".to_string()));
         }
     }
 
@@ -126,10 +126,10 @@ impl Connection {
                     _ => bail!(ErrorKind::InvalidReply(format!("ReleaseName: invalid response {}", r))),
                 }
             } else {
-                bail!(ErrorKind::InvalidReply("ReleaseName: invalid response".to_owned()));
+                bail!(ErrorKind::InvalidReply("ReleaseName: invalid response".to_string()));
             }
         } else {
-            bail!(ErrorKind::InvalidReply("ReleaseName: no response".to_owned()));
+            bail!(ErrorKind::InvalidReply("ReleaseName: no response".to_string()));
         }
     }
 
