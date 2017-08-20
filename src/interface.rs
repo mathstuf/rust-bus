@@ -1,17 +1,14 @@
 // Distributed under the OSI-approved BSD 3-Clause License.
 // See accompanying LICENSE file for details.
 
-extern crate core;
-use self::core::ops::DerefMut;
+use crates::core::ops::DerefMut;
+use crates::machine_id::MachineId;
 
-extern crate machine_id;
-use self::machine_id::MachineId;
-
-use super::arguments::Arguments;
-use super::connection::Connection;
-use super::error::Error;
-use super::message::{Message, MessageType};
-use super::value::{BasicValue, Dictionary, Signature, Value};
+use arguments::Arguments;
+use connection::Connection;
+use error::Error;
+use message::{Message, MessageType};
+use value::{BasicValue, Dictionary, Signature, Value};
 
 use std::cell::{Ref, RefCell};
 use std::collections::btree_map::{BTreeMap, Entry};

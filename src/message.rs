@@ -1,14 +1,11 @@
 // Distributed under the OSI-approved BSD 3-Clause License.
 // See accompanying LICENSE file for details.
 
-extern crate dbus_bytestream;
-use self::dbus_bytestream::message;
+use crates::dbus_bytestream::message;
+use crates::dbus_serialize::types::Variant;
 
-extern crate dbus_serialize;
-use self::dbus_serialize::types::Variant;
-
-use super::error::Error;
-use super::value::{BasicValue, Marshal, Value};
+use error::Error;
+use value::{BasicValue, Marshal, Value};
 
 #[derive(Debug)]
 /// A message to communicate on the D-Bus.

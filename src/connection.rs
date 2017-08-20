@@ -1,14 +1,11 @@
 // Distributed under the OSI-approved BSD 3-Clause License.
 // See accompanying LICENSE file for details.
 
-extern crate bitflags;
+use crates::dbus_bytestream::connection;
 
-extern crate dbus_bytestream;
-use self::dbus_bytestream::connection;
-
-use super::error::Error;
-use super::message::{Message, MessageType};
-use super::value::{BasicValue, Value};
+use error::Error;
+use message::{Message, MessageType};
+use value::{BasicValue, Value};
 
 bitflags! {
     /// Flags for use when requesting a name on the bus from the bus.

@@ -14,6 +14,13 @@
 #[macro_use]
 extern crate bitflags;
 
+mod crates {
+    pub extern crate core;
+    pub extern crate dbus_bytestream;
+    pub extern crate dbus_serialize;
+    pub extern crate machine_id;
+}
+
 mod arguments;
 mod connection;
 mod error;

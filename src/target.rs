@@ -1,7 +1,7 @@
 // Distributed under the OSI-approved BSD 3-Clause License.
 // See accompanying LICENSE file for details.
 
-use super::message::Message;
+use message::Message;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
 /// A representation of a signal which may be emitted.

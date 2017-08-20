@@ -1,9 +1,8 @@
 // Distributed under the OSI-approved BSD 3-Clause License.
 // See accompanying LICENSE file for details.
 
-extern crate dbus_bytestream;
-use self::dbus_bytestream::connection;
-use self::dbus_bytestream::demarshal;
+use crates::dbus_bytestream::connection;
+use crates::dbus_bytestream::demarshal;
 
 use std::error;
 use std::fmt::{Display, Formatter, Result};

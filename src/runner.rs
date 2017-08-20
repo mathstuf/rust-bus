@@ -1,10 +1,10 @@
 // Distributed under the OSI-approved BSD 3-Clause License.
 // See accompanying LICENSE file for details.
 
-use super::connection::Connection;
-use super::error::Error;
-use super::message::MessageType;
-use super::server::Server;
+use connection::Connection;
+use error::Error;
+use message::MessageType;
+use server::Server;
 
 use std::collections::btree_map::{BTreeMap, Entry};
 use std::rc::Rc;
