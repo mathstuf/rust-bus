@@ -1,3 +1,6 @@
+// Distributed under the OSI-approved BSD 3-Clause License.
+// See accompanying LICENSE file for details.
+
 #![warn(missing_docs)]
 
 //! Module for exposing interfaces to a D-Bus manager.

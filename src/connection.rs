@@ -1,3 +1,6 @@
+// Distributed under the OSI-approved BSD 3-Clause License.
+// See accompanying LICENSE file for details.
+
 extern crate bitflags;
 
 extern crate dbus_bytestream;
